@@ -1,0 +1,285 @@
+# scCLINIC: single-cell CLeaner: Identify aNd Interpret Contaminations
+
+DEAlgo is an R package that identifies potential artifacts in single-cell RNA sequencing data (including doublets, multiplets and local contamination) and suggests potential source(s) of these artifacts. 
+
+DEAlgo was developed with Seurat 4.9.9.9060 (https://satijalab.org/seurat/).
+
+DEAlgo was published on bioRxiv in July, 2024: 
+
+Current doublet detection and ambient RNA removal algorithms underestimate the complexity and heterogeneity of technical artifacts within single-cell analysis. Artifacts can occur at any stage, from incomplete cell dissociation to doublet/multiplet formation in droplet-based microfluidic or microwell systems.
+The standard preprocessing pipeline, which is well-established in single-cell analysis, recommends using ambient RNA removal and doublet detection algorithms sequentially. However, despite stringent implementations of these methods, we observed that a significant population of cells in our datasets remains enriched with cell-specific marker genes that are biologically incongruent. For example, subclusters in adipocytes enriched for the endothelial marker gene PECAM1, falsely enriching for angiogenesis pathways. Other published pre-processed data have also reported similar issues. Due to a lack of robust filtering methods, researchers often resort to manual removal of contaminated cells, leading to biased outcomes.
+
+In a real-world situation, multiplets and ambient RNA are not mutually exclusive. Instead, doublets/multiplets/cell fractions and ambient RNA can occur concurrently, both globally (i.e., across all cell types) and locally (i.e., cell-type dependent), resulting in single cell artifacts. Therefore, doublet detection and ambient RNA effects, both global and local, should not be treated separately.
+
+To address this, we designed **scCLINIC: single-cell CLeaner: Identify aNd Interpret Contaminations**, which systematically detects artifacts without any reference and ascertains the likely contaminant source for review and further curation. scCLINIC achieved higher AUPRC and AUROC scores when benchmarked against other doublet detection algorithms using a simulated dataset. We applied scCLINIC to publicly available datasets and identified artifacts that were not detected by other doublet detection algorithms. These artifacts uniquely detected by scCLINIC contributed to the enrichment of erroneous pathways, including enrichment of adipocyte stem/progenitor cell (ASPC) related pathways in immune cells of diabetic patients. We could also derive biological explanations for the contamination patterns detected by scCLINIC, such as increased platelet aggregation with monocytes and lymphocytes in COVID-19 patients.
+
+
+## Version and Updates
+
+(28/5/2024) Initial version 
+(06/6/2024) 1. Redefining Identity Score to mean of Differential Percentage Expression (DPE)
+            2. scCLINIC contamination score calculation based on Averaging ES instead of summing IS score 
+            3. Classified subclusters as different level of contamination instead of binary classification of Contaminated or Non-contaminated cells
+            4. **New PlotContaminationPattern function to dissect the source of artifacts in each subclusters**
+
+
+## Installation (in R/RStudio)
+
+```R
+Sys.setenv(GITHUB_PAT = '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')
+remotes::install_github('JayShinLab/dealgolorg@V04062024.yx',auth_token = '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')
+```
+
+## Dependencies
+
+DEAlgo requires the following R packages: 
+
+* Seurat (4.9.9.9060) 
+* dplyr (1.1.3)
+* pracma (2.4.2)
+* ggplot2 (3.4.4)
+* gridExtra (2.3) **for PlotContaminationPattern**
+* reshape2 (1.4.4) **for PlotContaminationPattern**
+* viridisLite (0.4.2) **for PlotContaminationPattern**
+* pheatmap (1.0.12) **for PlotContaminationPattern**
+* tidyr (1.3.1) **for PlotContaminationPattern**
+* NOTE: These package versions were used in the bioRxiv paper.
+
+## A quick start
+```R
+library(dealgolorg)
+obj <- load_data()
+#1. W/O user Annotation
+DEAlgo_Main_Function("kidney_test",obj,"~/DEAlgoManuscript/test/") #replace "~/user/output/" with the directory to store DEAlgo result
+#2. Using user annotation OverlapRatio = "CT.Park"
+DEAlgo_Main_Function("kidney_manual_test",obj,"~/DEAlgoManuscript/test/", OverlapRatio = "CT.Park",CELLANNOTATION = TRUE)
+```
+
+## Step-by-step for 1. W/O user annotation
+
+```R
+library(dealgolorg)
+library(dplyr)
+library(pracma)
+library(Seurat)
+library(ggplot2)
+library(tidyr)
+library(pheatmap)
+library(viridisLite)
+library(reshape2)
+library(gridExtra)
+
+Name <- "kidney_test"
+Input <- load_data()
+Output <- "~/DEAlgoManuscript/test/"
+filteredmatrix=NA
+rawmatrix=NA
+resol=0.8
+overlapRatioList=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+OverlapRatio=0.5
+ISThreshold=0
+Cutoff=0.1
+gene_n=150
+  
+obj <- STEP1A_GlobalMarkers(Input,Output,Name,resol)
+
+obj <- STEP1B_MergingCluster(obj,Output,Name,resol,overlapRatioList,gene_n)
+
+obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n)
+
+obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold)
+
+STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n)
+
+obj <- STEP2B_ContaminationScore(obj,Output,Name,resol,OverlapRatio,gene_n,Cutoff,filteredmatrix,rawmatrix)
+
+PlotContaminationPattern(obj,Output,Name,OverlapRatio)
+```
+
+## Step-by-step for 2. using user annotation
+
+```R
+library(dealgolorg)
+library(dplyr)
+library(pracma)
+library(Seurat)
+library(ggplot2)
+library(tidyr)
+library(pheatmap)
+library(viridisLite)
+library(reshape2)
+library(gridExtra)
+
+Name <- "kidney_manual_test"
+Input <- load_data()
+Output <- "~/DEAlgoManuscript/test/"
+filteredmatrix=NA
+rawmatrix=NA
+resol="Manual"
+OverlapRatio="CT.Park" #Assign clustering in alphabetical order
+Cutoff=0.1
+gene_n=150
+CELLANNOTATION = TRUE
+  
+obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
+
+obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold,CELLANNOTATION = TRUE)
+
+STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
+
+obj <- STEP2B_ContaminationScore(obj,Output,Name,resol,OverlapRatio,gene_n,Cutoff,filteredmatrix,rawmatrix,CELLANNOTATION = TRUE)
+
+PlotContaminationPattern(obj,Output,Name,OverlapRatio,CELLANNOTATION = TRUE)
+```
+
+# scCLINIC Overview
+
+scCLINIC workflow comprises of two steps:
+
+(1) detect cell clusters with low identity and exclude them from analysis and
+
+(2) identify artifact cell clusters and ascertain the contamination source(s).
+
+
+![Figure 1. Types of local soup effect and DEAlgo infrastructure designed to address those effects.](DEAlgo.screenshots/fig1.png)
+Figure 1. Types of local soup effect and DEAlgo infrastructure designed to address those effects.
+
+scCLINIC takes in either the post-QC Seurat object (using standard single-cell pre-processing workflows) **(Step1A)** or post-clustering Seurat objects after cell-type clustering and removal of low quality cells **(Step1C)**.
+
+## Step1A
+
+- With input of post-QC Seurat object, scCLINIC begins with clustering cells at high resolution and identifying marker genes for each cluster.
+- Clustering result visualized in Figure 2 (filename with prefix 1a)
+
+![Figure 2. Standard Seurat clustering with 0.8 resolution, and the nCount.](example.output/1a_resol_0.8.jpeg)
+Figure 2. Standard Seurat clustering with 0.8 resolution, and the nCount.
+
+## Step1B
+
+- scCLINIC will then merge clusters with high percentage of overlapping marker genes into Major Clusters, using a default threshold of 50% overlap.
+- Users can set the threshold depending on their datasets (e.g. setting a lower threshold for less heterogeneous datasets, such as cell lines, with fewer overlapping marker genes).
+- Merging result visualized in Figure 3 (filename with prefix 1b, end with the threshold ratio, eg. 0.1 = 10% threshold)
+
+![Figure 3A. threshold = 10% overlap](example.output/1b_OverlapInfo_resol_0.8_DEAlgo_G0OR_0.1.jpeg)
+Figure 3A. threshold = 10% overlap
+
+![Figure 3B. threshold = 20% overlap](example.output/1b_OverlapInfo_resol_0.8_DEAlgo_G0OR_0.2.jpeg)
+Figure 3B. threshold = 20% overlap
+
+![Figure 3C. threshold = 30% overlap](example.output/1b_OverlapInfo_resol_0.8_DEAlgo_G0OR_0.3.jpeg)
+Figure 3C. threshold = 30% overlap
+
+![Figure 3D. threshold = 40% overlap](example.output/1b_OverlapInfo_resol_0.8_DEAlgo_G0OR_0.4.jpeg)
+Figure 3D. threshold = 40% overlap
+
+![Figure 3E. threshold = 50% overlap](example.output/1b_OverlapInfo_resol_0.8_DEAlgo_G0OR_0.5.jpeg)
+Figure 3E. threshold = 50% overlap
+
+## Step1C
+
+- Users can perform their own cell-type clustering and skip steps 1A and 1B and directly proceed with Step1C. 
+- scCLINIC calculates an **Identity Score (IS)** for each Major Cluster by averaging the **Differential Percentage Expression (DPE)** for each marker gene (difference between the percentage cell expression in the major cluster (pct.1) and all other cells (pct.2)). 
+- Identity Score of each major clusters indicated in Table 1 (csv filename with prefix 1c)
+
+Table 1:
+
+| Cluster | IdentityScore   | ncell_local    | aveexp_local    | aveexp_ref    | avg_log2FC    | pct.1    | pct.2    | p_val_adj    |
+| :-----: | :-------------: | :------------: | :-------------: | :-----------: | :-----------: | :------: | :------: | :----------: |
+| 0       | 1.16            | 1912           |1.97             |0.17           |2.26           |0.66      |0.14      |0.00          |
+| 9       | -0.10           | 1912           |1.97             |0.17           |2.26           |0.66      |0.14      |0.00          |
+| 10      | -0.10           | 1912           |1.97             |0.17           |2.26           |0.66      |0.14      |0.00          |
+| 12      | -0.09           | 1912           |1.97             |0.17           |2.26           |0.66      |0.14      |0.00          |
+
+Data Source From:
+
+![Figure 4. CITE-Seq cell hashing dataset with barcoded antibodies. Single cells collected from four cell lines: HEK, K562, KG1 and THP1](DEAlgo.screenshots/fig2.png)
+Figure 4. CITE-Seq cell hashing dataset with barcoded antibodies. Single cells collected from four cell lines: HEK, K562, KG1 and THP1
+
+## Step1D
+
+- Major clusters with low IS, below a default threshold of 0, are likely to be low quality cell clusters and will be excluded from analysis. Users can modify the threshold to be more lenient or stringent depending on the quality of their datasets.
+- Major clusters after thresholding visualized in Figure 5 (filename with prefix 1d)
+
+![Figure 5. After remove low IS clusters](example.output/1d_resol_0.8_DEAlgo_G0OR_0.25_DEAlgoG0.jpeg)
+Figure 5. After remove low IS clusters
+
+## Step2A
+
+- After removing cells with low identity, scCLINIC subsets and re-clusters each major cluster into subclusters. 
+- The union of marker genes from all major clusters are used as the variable features for PCA and clustering, using a default resolution of 1.5. 
+
+## Step2B
+
+- scCLINIC calculates a **Cluster Contribution Score (CCS)** and **Contamination Score (CS)** for each subcluster. 
+  - The **Enrichment Score (ES)** of marker genes from other Major Clusters is calculated, comparing between the subcluster and other cells within the same Major Cluster. ES = avg_log2FC*(pct.1-pct.2). 
+  - The **Contamination Score (CS)** for each subcluster is calculated by averaging the ES of marker genes from all major clusters. 
+  - **Cluster Contribution Scores (CCS)** are calculated by averaging the ES of marker genes from each major cluster. 
+- The sum of CCS from all major clusters may be higher than the CS because there may be marker genes shared between multiple major clusters.
+- Subclusters will be ranked on an elbow plot according to their contamination score, multiple elbow points will be calculated and subclusters will be classified as different level of contamination levels based on the elbow points.
+
+![Figure 6. Elbow curve of contamination Score vs. Number of Cells: elbow point cutoff (black dotted line)](example.output/ContaminationScorePlot.png)
+Figure 6. Elbow curve of contamination Score vs. Number of Cells: elbow point cutoff (black dotted line). 1 to 7 contamination levels, 1: Highest and 7: Lowest contamination 
+
+- scCLINIC will tabulate the contamination information, including the putative artifact genes, potential major cluster source(s), and the expression levels/profiles (e.g. avgLogFC, pct.1 and pct.2) of these genes.
+- (OPTIONAL) The distribution of artifact genes within “empty droplets” will be included in the table if the unfiltered cell matrix is provided. 
+- Artifact subclusters can be manually validated by users based on biological knowledge, with the help of interpretable artifact information, and subsequently removed for downstream analysis.
+
+## Result (in Output folder)
+
+- Step2B return a Seurat object including the Contamination Score (DiffDP1_sum), Subclusters contamination levels (DEAlgocluster_Contam), which stored as DEAlgoResult.rds
+- ContaminationInfo csv file including the information for each artifact genes, the subclusters they contaminated and their source of artifacts.
+- scCLINIC results visualized in major cluster and subcluster in Figure 7 and Figure 8, respectively.
+
+![Figure 7. scCLINIC Result in major cluster](example.output/DEAlgoResult_annotation_index_.png)
+Figure 7. scCLINIC Result, contamination levels (DEAlgocluster_Contam: 1 to 7 contamination levels)
+
+![Figure 8. scCLINIC Result in subcluster M8](example.output/annotation_index_cluster_M8_rawscore.png)
+Figure 8. scCLINIC Result in subcluster M8, contamination levels (DEAlgocluster_Contam: 1 to 7 contamination levels)
+
+## PlotContaminationPattern
+
+- Plotting the scCLINIC CS and CCS for each subclusters from each source of artifacts
+
+![Figure 9. scCLINIC CS and CCS for M8 subclusters](example.output/ContaminationScoreM8.png)
+Figure 9. scCLINIC CS and CCS for M8 subclusters, each column represent each source of artifacts and the "Score" represent CS score.
+
+- scCLINIC CCS score of different source of artifacts visualized in major cluster and subcluster in Figure 10 and Figure 11, respectively.
+
+![Figure 10. scCLINIC CCS score of different source of artifacts in major clusters](example.output/ContaminationPattern_SourceOfArtifacts.png)
+Figure 10. scCLINIC CCS score of different source of artifacts in major clusters.
+
+![Figure 11. scCLINIC CCS score of different source of artifacts in subcluster M8](example.output/annotation_index_cluster_M8_ContaminationPattern_SourceofArtifacts.png)
+Figure 11. scCLINIC CCS score of different source of artifacts in subcluster M8.
+
+## Input and Output
+
+* Name #Name of Run, name of output folder
+* Input #Input Directory of original Seurat Object
+* Output #Output Directory of DEAlgo Results
+* filteredmatrix #Type NA if no filtered matrix, directory and file name of filteredmatrix: eg. /user/filteredmatrix
+* rawmatrix #Type NA if no raw matrix
+
+## Params
+
+DEAlgo takes the following arguments:
+
+* resol Step1A: FindClusters resolution for initial clustering in Step1, default using Seurat FindClusters default resolution: 0.8
+* overlapRatioList Step1B: The overlap ratio to try in Step1B (recommended range: 0.1 to 0.5)
+* OverlapRatio Step1C: The overlap ratio to carry forward to Step1C, default using 0.5, decrease to have coarse resolution
+* ISThreshold Step1D: The threshold for Indentity Score (IS) to classify low quality cells
+* gene_n Step2A: Number of markers to calculated
+* Cutoff Step2B: Threshold for background/noise artifacts, which to offset the background artifacts (ONLY affect DEAlgoref, threshold to remove not significant source of artifacts, prevent all source of artifacts listed in DEAlgoref)
+
+For pre-process Seurat object with clustering annotations
+* OverlapRatio column name in the seurat object metadata which used for "annotation"
+* CELLANNOTATION set to TRUE if using user cluster annotation
+
+
+
+
+
+
+
+
+
+
