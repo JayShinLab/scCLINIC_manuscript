@@ -188,7 +188,7 @@ for (contamper in proportion_lst){
                                                                 "#cb5a4c",
                                                                 "#cecece"),pt.size = 0.1)
   
-  ggsave(filename = paste0(outdir,"Syn_5_Cell_Type_CP_",contamper,"_DR_",DoubletsPerCluster,".jpeg"), p1+p2+p3, height = 5, width = 15, dpi = 300)
+  ggsave(filename = paste0(outdir,"Syn_5_Cell_Type_CP_",contamper,"_DR_",DoubletsPerCluster,".png"), p1+p2+p3, height = 5, width = 15, dpi = 300)
   
   saveRDS(synwithcontam.recluster,paste0(outdir,"Syn_5_Cell_Type_CP_",contamper,"_DR_",DoubletsPerCluster,".rds"))
   

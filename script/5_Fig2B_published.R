@@ -677,6 +677,219 @@ obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/step1d.rds")
 obj <- STEP2B_ContaminationScore(obj,Output,Name,resol,OverlapRatio,gene_n,Cutoff,filteredmatrix,rawmatrix)
 
 PlotContaminationPattern(obj,Output,Name,OverlapRatio)
+
+PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTATION = FALSE, verbose = TRUE){
+  ###No Return
+  message("Plot Contamination Pattern.")
+  
+  if (CELLANNOTATION){
+    message("Using user-annotated clusters.")
+    obj@meta.data$annotation_index <- paste0("M",as.numeric(factor(obj@meta.data[,OverlapRatio])))#change the manual annotation to index, eg. CellType0 CellType1 CellType2 CellType3 to 1 2 3 4
+    OverlapRatio <- "annotation_index" #User manual cellannotation
+  }else{
+    OverlapRatio <- paste0("Overlap_Ratio_",OverlapRatio)
+    message(paste0("Using ",OverlapRatio))
+  }
+  
+  folder_path_Step2_Output <- paste0(Outdir,Name,"_Step2/Output_",OverlapRatio,"/")
+  
+  #Load artifacts information and DEAlgo result rds
+  contamgeneinfo <- read.csv(paste0(folder_path_Step2_Output,"overlaplst_filtered_",OverlapRatio,"_ContaminationInfo.csv"),na.strings = c("", "NA"))
+  
+  #DEAlgo Subcluster ID
+  contamgeneinfo$MajorSub <- paste0(contamgeneinfo$globalcluster,contamgeneinfo$cluster_local)
+  #Summarize ES score and their source of major cluster for each subclusters
+  result <- contamgeneinfo %>%
+    group_by(MajorSub) %>%
+    summarize(
+      cluser_reflst = list(cluster_ref),
+      dp1lst = list(dp1)
+    ) %>%
+    ungroup()
+  
+  # Function to calculate the average ES score (dp1lst) for each source of artifacts (cluster_reflst)
+  tabulate_Cluster_Contribution_Score <- function(cluster_reflst, dp1lst) {
+    components <- unlist(cluster_reflst)
+    dp1_values <- unlist(dp1lst)
+    CCS_Matrix <- tapply(dp1_values, components, mean, na.rm = TRUE)
+    return(CCS_Matrix)
+  }
+  
+  # For each subclusters (each row in result), calculate the average ES score for each source of artifacts
+  tabulate_CCS <- mapply(tabulate_Cluster_Contribution_Score, result$cluser_reflst, result$dp1lst, SIMPLIFY = FALSE)
+  
+  # List of all source of artifacts which contaminated major cluster X
+  lst_of_source_of_artifacts <- unique(unlist(lapply(tabulate_CCS, names)))
+  
+  # Create a matrix, each row represent one subclusters and each column present each source of artifacts, to store the CCS for each major clusters
+  CCS_Matrix <- matrix(NA, nrow = length(tabulate_CCS), ncol = length(lst_of_source_of_artifacts), dimnames = list(NULL, lst_of_source_of_artifacts))
+  
+  # store the CCS for each major clusters in the matrix
+  for (i in seq_along(tabulate_CCS)) {
+    CCS_Matrix[i, names(tabulate_CCS[[i]])] <- tabulate_CCS[[i]]
+  }
+  
+  # Replace NA with 0
+  CCS_Matrix[is.na(CCS_Matrix)] <- 0
+  
+  # Convert to dataframe for plotting
+  CCS_Matrix <- as.data.frame(CCS_Matrix)
+  CCS_Matrix$MajorSub <- result$MajorSub #Named each rows with their Subclusters ID
+  data <- CCS_Matrix %>%
+    pivot_longer(cols = -MajorSub, names_to = "Component", values_to = "value") #dependency tidyr
+  
+  for (clusterx in unique(obj@meta.data[,OverlapRatio])){
+    # Filter out other clusters, only keep cluster X which wish to display
+    filtered_data <- data %>%
+      dplyr::filter(startsWith(MajorSub, clusterx))
+    
+    if (nrow(filtered_data) != 0){
+      message(paste0("Plot Contamination Pattern ",clusterx))
+      # Stacked Plot of CCS vs Subclusters
+      p1 <- ggplot(filtered_data, aes(fill=Component, y=value, x=MajorSub)) +
+        geom_bar(position="stack", stat="identity")+
+        labs(title = paste0(clusterx),
+             x = "Subclusters",
+             y = "Contamination Score") +
+        scale_fill_manual(values = viridis(length(lst_of_source_of_artifacts)),
+                          name = "Source of artifacts") +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+              axis.title.x = element_text(size = 8),  # Adjust x-axis title size
+              axis.title.y = element_text(size = 8))
+      
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreStackPlot",clusterx,".png"), p1, height = 8, width = 8, dpi = 300)
+      
+      # Heatmap
+      # filtered_data$value[startsWith(as.character(filtered_data$MajorSub), substr(as.character(filtered_data$Component), 1, 2))] <- 0
+      # COnvert dataframe
+      heatmap_data <- dcast(filtered_data, MajorSub ~ Component, value.var = "value")
+      heatmap_data <- heatmap_data[, !colnames(heatmap_data) %in% clusterx]#remove itself as source of artifacts
+      
+      rownames(heatmap_data) <- heatmap_data$MajorSub #Named rownames as the subcluster ID (MajorSub)
+      heatmap_data$MajorSub <- NULL #remove MajorSub columns
+      
+      #heatmap_data$Total <- rowSums(heatmap_data,na.rm = TRUE)
+      
+      # Summarize DEAlgo Contamination Score (CS) of each subclusters
+      CS_table <- obj@meta.data %>%
+        group_by(DEAlgo_ClusterID) %>%
+        summarize(
+          DiffDP1_sum = mean(DiffDP1_sum), #DiffDP1_sum of each cells within each subclusters are same value...
+        ) %>%
+        ungroup()
+      
+      #Convert to plotting dataframe
+      heatmap_data <- as.data.frame(heatmap_data)  # Convert heatmap_data to a dataframe
+      heatmap_data <- heatmap_data %>%
+        mutate(Score = CS_table$DiffDP1_sum[match(rownames(heatmap_data), CS_table$DEAlgo_ClusterID)]) #Score
+      
+      # Convert data to matrix
+      heatmap_matrix <- as.matrix(heatmap_data)
+      
+      # Calculate the color scale for heatmap based on quantile breaks
+      quantile_breaks <- function(xs, n = 10) {
+        breaks <- quantile(xs, probs = seq(0, 1, length.out = n))
+        breaks[!duplicated(breaks)]
+      }
+      mat_breaks <- quantile_breaks(heatmap_matrix, n = 100)
+      
+      # Create heatmap
+      p2 <- pheatmap(heatmap_matrix,
+                     cluster_rows = FALSE,  # Do not cluster rows
+                     cluster_cols = FALSE,  # Do not cluster columns
+                     main = paste0(clusterx),
+                     na_col = "grey",  # Fill missing values with grey
+                     color             = viridis(length(mat_breaks) - 1),
+                     breaks            = mat_breaks,
+                     labels_row = rownames(heatmap_matrix),
+                     labels_col = colnames(heatmap_matrix),
+                     show_rownames = TRUE,  # Show row names
+                     show_colnames = TRUE,
+                     angle_col = 0)
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreHeatmap",clusterx,".png"), p2, height = 2.8, width = 8, dpi = 300)
+      
+      # Plot multicolumn bar plot
+      multicolplot <- data.frame((heatmap_matrix))
+      
+      rownames_sorted <- rownames(multicolplot)[order(as.numeric(gsub(".*S", "", rownames(multicolplot))),decreasing = T)]
+      
+      # Reorder the heatmap matrix rows according to the sorted row names
+      multicolplot <- multicolplot[rownames_sorted, ]
+      
+      colnames_sorted <- colnames(multicolplot)[order(as.numeric(gsub("M", "", colnames(multicolplot))),decreasing = F)]
+      
+      # Reorder the heatmap matrix rows according to the sorted row names
+      multicolplot <- multicolplot[,colnames_sorted]
+      
+      multicolplot$Category <- as.character(rownames(multicolplot))
+      
+      multicolplot$Category <- factor(multicolplot$Category, levels = rownames_sorted)
+      
+      x_limits <- c(0, ceiling(max(multicolplot[, -ncol(multicolplot)], na.rm = TRUE) * 100) / 100)
+      custom_breaks <- seq( x_limits[1], x_limits[2], length.out = 3)
+      text_size = 5
+      
+      plot_list <- list()
+      for (i in seq(colnames_sorted)) {
+        clus <- colnames_sorted[i]
+        p <- ggplot(multicolplot, aes_string(x = "Category", y = clus)) +
+          geom_bar(stat = "identity", fill = c("#d55046","#8d8d0f","#b488bb","#FDE725")[i]) + # viridis(length(colnames_sorted))[i]) +
+          labs(title = paste(clus), y ="", x ="") +  # Set y-axis label for the first plot only
+          theme_minimal()+
+          theme(panel.grid = element_blank(),axis.line = element_line(color = "black"),
+                axis.text = element_text(size = text_size),
+                axis.title = element_text(size = text_size),
+                plot.title = element_text(size = text_size)) +
+          coord_flip()+
+          #ylim(x_limits)+
+          scale_y_continuous(breaks = custom_breaks, limits = x_limits)+
+          if (i != 1){
+            theme(axis.text.y = element_blank())
+          }
+        # Add the plot to the list
+        plot_list[[i]] <- p
+      }
+      
+      widths <- c(6.2, rep(5, length(plot_list) - 1))
+      
+      g1 <- grid.arrange(grobs = plot_list, ncol = length(plot_list),right = "",widths = widths)
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScore",clusterx,".png"),g1,  height = 2.5, width = 8, dpi = 300)
+      
+    }
+  }
+  
+  ###Plot Source of Artifacts Contamination Patterns
+  #Plotting and visualize the DEAlgo score of each source of artifacts on the major cluster's UMAP,
+  p1 <- FeaturePlot(obj,features = colnames(CCS_Matrix)[colnames(CCS_Matrix) != "MajorSub"])
+  ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationPattern_SourceOfArtifacts",".png"),p1,  height = 20, width = 20, dpi = 300)
+  
+  folder_path_Step2_L1R <- paste0(Outdir,Name,"_Step2/",OverlapRatio,"_recluster/")
+  folder_path_Step2_L1R_Marker <- paste0(Outdir,Name,"_Step2/",OverlapRatio,"_recluster/Marker/")
+  
+  qcsclst <- sort(unique(obj@meta.data[,OverlapRatio]))#list of major clusters seurat ID
+  cluster_to_consider <- list()
+  for (i in sort(qcsclst)){
+    file_name <- paste0(OverlapRatio,"_cluster_",i,".csv")
+    if (file_name %in% list.files(folder_path_Step2_L1R_Marker)){
+      cluster_to_consider <- unlist(c(cluster_to_consider,i))
+    }
+  }
+  
+  for (i in cluster_to_consider){
+    file_name <- paste0(OverlapRatio,"_cluster_",i,".rds")
+    if (file_name %in% list.files(folder_path_Step2_L1R)){
+      recluster <- readRDS(paste0(folder_path_Step2_L1R,file_name))
+      recluster@meta.data <- obj@meta.data[rownames(recluster@meta.data),]#copy-paste the metadata of updated seurat object to subcluster's metadata
+      #Plotting and visualize the DEAlgo score of each source of artifacts on the subcluster's UMAP,
+      p1 <- FeaturePlot(recluster, features = colnames(CCS_Matrix)[!colnames(CCS_Matrix) %in% c("MajorSub", i)])
+      ggsave(filename = paste0(folder_path_Step2_Output,OverlapRatio,"_cluster_",i,"_ContaminationPattern_SourceofArtifacts.png"), p1, height = 10, width = 10, dpi = 300)
+    }
+  }
+}
+obj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/DEAlgo_Fig2B_hto12_Step2/Output_Overlap_Ratio_0.25/","DEAlgoResult.rds"))
+PlotContaminationPattern(obj,Output,Name,OverlapRatio,CELLANNOTATION = FALSE)
+
   
 #DoubletFinder
 library(DoubletFinder)
@@ -728,7 +941,7 @@ p2 <- DimPlot(pbmcLog.Doublet, reduction = 'umap', group.by = grep("DF.",colnam,
 p3 <- DimPlot(pbmcLog.Doublet, reduction = 'umap', group.by = "seurat_clusters")
 p4 <- FeaturePlot(pbmcLog.Doublet,features = grep("pANN",colnam,value = T),reduction = 'umap')
 
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","DoubletFinder.jpeg"), p1+p2+p3+p4, height = 20, width = 20, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","DoubletFinder.png"), p1+p2+p3+p4, height = 20, width = 20, dpi = 300)
 saveRDS(pbmcLog.Doublet, paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","DoubletFinderScore.rds"))
 
 # Define a function to check for repeated instances in a string
@@ -824,6 +1037,30 @@ dealgoseuobj$hybrid <- doublet_b4qc$hybrid
 dealgoseuobj$DoubletFinder <- doublet_b4qc$DoubletFinder
 dealgoseuobj$DFbfqc_pANN <- doublet_b4qc$DFbfqc_pANN
 dealgoseuobj$DFbfqc <- doublet_b4qc$DFbfqc
+
+dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < singletlevel, "Artifact", "Singlet")
+dealgoseuobj$dealgocontamclus <- ifelse(dealgoseuobj$DEAlgo_Contaminated == "Artifact", dealgoseuobj$DEAlgo_ClusterID, NA)
+
+for (i in c("M0","M1","M2","M4")){
+  file_name <- paste0("Overlap_Ratio_0.25","_cluster_",i,".rds")
+  recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/DEAlgo_Fig2B_hto12_Step2/Overlap_Ratio_0.25_recluster/",file_name))
+  
+  recluster$DEAlgo_ClusterID <- dealgoseuobj$DEAlgo_ClusterID
+  recluster$DiffDP1_sum <- dealgoseuobj$DiffDP1_sum
+  recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
+  recluster$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
+  recluster$dealgocontamclus <- dealgoseuobj$dealgocontamclus 
+  
+  p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE,  sizes.highlight = 0.1)
+  p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
+  p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
+  p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
+  
+  p3 <- DimPlot(recluster, group.by = "dealgocontamclus")
+  
+  ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B_cluster_",i,"_ID.png"), p7+p5+p8+p4+p3, height = 10, width = 15, dpi = 300)
+  
+}
 
 ###Calculate AUROC
 auroclst <- list()
@@ -967,7 +1204,7 @@ pr_df4 <- data.frame(Recall = pr4$curve[,1], Precision = pr4$curve[,2], Dataset 
 
 auprc <- pr4$auc.integral#pr$auc.integral
 print(paste0("bcds AUPRC:",bcds = auprc))
-auprclst <- c(auprclst,auprc)
+auprclst <- c(auprclst,bcds = auprc)
 #Hybrid
 score <- aucinput$hybrid
 label <- aucinput$AUC
@@ -1003,12 +1240,12 @@ p2 <- ggplot(pr_combined, aes(x = Recall, y = Precision, color = Dataset)) +
   scale_color_manual(values =  c("#53a0b9", "#9671c3", "#d55046","#be883d","#69a75f"))+  # Customize colors if needed
   theme(panel.grid = element_blank())
 
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B.jpeg"), plot = p1+p2, height = 5, width = 12, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B.png"), plot = p1+p2, height = 5, width = 12, dpi = 300)
 
 #Save AUPRC Score
 auprclst_df <- data.frame(
   Method = names(auprclst),
-  AUROC = unlist(auprclst)
+  AUPRC = unlist(auprclst)
 )
 rownames(auprclst_df) <- 1:nrow(auprclst_df)
 write.table(auprclst_df,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","auprc.csv"), sep = ",")
@@ -1028,7 +1265,7 @@ library(UpSetR)
 
 # example of list input (list of named vectors)
 listInput <- list(cxds = cxdscall, bcds = bcdscall, Hybrid = Hybridcall, DoubletFinder = DFcall, scCLINIC = DEAlgocall, GroundTruth = GroundHetero)
-png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_ngroundtruth.jpeg"), width = 2000, height = 2000,res=300)
+png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_ngroundtruth.png"), width = 2000, height = 2000,res=300)
 print(upset(fromList(listInput), order.by = "freq", nsets = 6))
 dev.off()
 
@@ -1040,7 +1277,7 @@ dev.off()
 # DFcall <- rownames(metadata[order(metadata$DFbfqc_pANN, decreasing = TRUE), ][1:533, ])
 # 
 # listInput1 <- list(cxds = cxdscall, bcds = bcdscall, Hybrid = Hybridcall, DoubletFinder = DFcall, DEAlgo = DEAlgoPredict, GroundTruth = GroundHetero)
-# png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_.jpeg"), width = 2000, height = 2000,res=300)
+# png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_.png"), width = 2000, height = 2000,res=300)
 # print(upset(fromList(listInput1), order.by = "freq", nsets = 6))
 # dev.off()
 
@@ -1053,7 +1290,7 @@ Hybridcall <- rownames(metadata[order(metadata$hybrid, decreasing = TRUE), ][1:5
 DFcall <- rownames(metadata[order(metadata$DFbfqc_pANN, decreasing = TRUE), ][1:533, ])
 DEAlgoPredict <- rownames(metadata[as.numeric(as.character(metadata$DEAlgocluster_Contam)) < singletlevel,]) #contaminated cells = level 1 and 2
 listInput1 <- list(cxds = cxdscall, bcds = bcdscall, Hybrid = Hybridcall, DoubletFinder = DFcall, scCLINIC = DEAlgoPredict, GroundTruth = GroundHetero)
-png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_defaultperformance.jpeg"), width = 2000, height = 2000,res=300)
+png(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/upsetplot_defaultperformance.png"), width = 2000, height = 1500,res=300)
 print(upset(fromList(listInput1), order.by = "freq", nsets = 6))
 dev.off()
 
@@ -1092,27 +1329,57 @@ for (i in cluster_to_consider){
     
     p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE, sizes.highlight = 0.05)
     p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
-    p6 <- DimPlot(recluster, reduction = "umap",group.by = "HomoHetero",raster=FALSE, sizes.highlight = 0.05)
-    p3 <- DimPlot(recluster, reduction = "umap",group.by = "Status",raster=FALSE, sizes.highlight = 0.05)
+    p6 <- DimPlot(recluster, reduction = "umap",group.by = "HomoHetero",raster=FALSE, sizes.highlight = 0.05,pt.size = 0.05)
+    p3 <- DimPlot(recluster, reduction = "umap",group.by = "Status",raster=FALSE, sizes.highlight = 0.05,pt.size = 0.05)
     p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE, sizes.highlight = 0.05)
     #p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgoref",raster=FALSE, sizes.highlight = 0.05)
     
     #p1 <- FeaturePlot(recluster, reduction = "umap",features = "DFafqc_pANN")
     p2 <- FeaturePlot(recluster, reduction = "umap",features = "DFbfqc_pANN")
-    p0 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE, label = F, sizes.highlight = 0.1)
-    p10 <- DimPlot(recluster, reduction = "umap",group.by = "DFbfqc",raster=FALSE, sizes.highlight = 0.05)
+    p0 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE, label = F, sizes.highlight = 0.1,pt.size = 0.05)
+    p10 <- DimPlot(recluster, reduction = "umap",group.by = "DFbfqc",raster=FALSE, sizes.highlight = 0.05,cols= c("red","grey"),pt.size = 0.05)
     
     # Combine plots into a 3x3 grid
     pa <- grid.arrange(p7,p0,p8,p4,p6,p3,p10,p2, ncol = 3)
     
     # Save the combined plot
-    ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/", res, "_cluster_", i, "_rawscore_Validate.jpeg"), pa,
+    ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/", res, "_cluster_", i, "_rawscore_Validate.png"), pa,
            height = 15, width = 15, dpi = 300)
     
-    #ggsave(filename = paste0(folder_path_Step2_Output,res,"_cluster_",i,"_rawscore_Validate.jpeg"), p2+p10+p3+p4+p5+p6+p7+p8+p9, height = 45, width = 5, dpi = 300)
+    #ggsave(filename = paste0(folder_path_Step2_Output,res,"_cluster_",i,"_rawscore_Validate.png"), p2+p10+p3+p4+p5+p6+p7+p8+p9, height = 45, width = 5, dpi = 300)
     
   }
 }
+##M2 Published
+i <- "M2"
+file_name <- paste0(res,"_cluster_",i,".rds")
+recluster <- readRDS(paste0(folder_path_Step2_Output,file_name))
+
+recluster$DFbfqc <- dealgoseuobj$DFbfqc
+recluster$DEAlgo_ClusterID <- dealgoseuobj$DEAlgo_ClusterID
+recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
+recluster$HTO_classification <- dealgoseuobj$HTO_classification
+recluster$DEAlgo_Contaminated <- ifelse(as.numeric(levels(recluster$DEAlgocluster_Contam))[recluster$DEAlgocluster_Contam] < singletlevel, "Artifact", "Singlet")
+recluster$dealgocontamclus <- ifelse(recluster$DEAlgo_Contaminated == "Artifact", recluster$DEAlgo_ClusterID, NA)
+recluster$Status <- unlist(lapply(recluster$HTO_classification, function(x) gsub("-.", "", x)))
+
+p3 <- DimPlot(recluster, reduction = "umap",group.by = "Status",raster=FALSE, sizes.highlight = 0.05,pt.size = 0.05, cols = 
+                c(  
+                  "#c4944a",
+                  "#d55046",
+                  "#11C3C7",
+                  "#1e88e5",
+                  "#b488bb",
+                  "#8d8d0f",  # Unique color 3 (changed)
+                  "grey"
+                  
+                ))
+p4 <- DimPlot(recluster, reduction = "umap",group.by = "dealgocontamclus",raster=FALSE, sizes.highlight = 0.05,pt.size = 0.05, cols = c("#8d8d0f","#b488bb","#d55046"))
+p10 <- DimPlot(recluster, reduction = "umap",group.by = "DFbfqc",raster=FALSE, sizes.highlight = 0.05,cols= c("red","grey"),pt.size = 0.05)
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/", "Published", "_cluster_", i, "_rawscore_Validate.png"), p3+p4+p10,
+       height = 5, width = 15, dpi = 300)
+
 
 originalseu <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/DEAlgo_Fig2B_hto12_Step1/1b_resol_0.8.rds")
 originalseu$HTO_classification <- hto12obj$HTO_classification
@@ -1133,5 +1400,24 @@ p12 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgo_Contaminated"
 
 
 p13 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE, label = F, sizes.highlight = 0.1)
+p14 <- DimPlot(originalseu, reduction = "umap",group.by = "RNA_snn_res.0.8",raster=FALSE, label = T, sizes.highlight = 0.1, label.size = 7)
 
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/",res,"_Fig3a.jpeg"), p13+p12+p3+p11+p9+p10+p8+p6+p2, height = 20, width = 22, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Overlap_Ratio_0.25","_Fig3a.png"), p14+p12+p3+p11+p9+p10+p8+p6+p2, height = 20, width = 22, dpi = 300)
+
+
+originalseu$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
+originalseu$DEAlgo_Contaminated <- ifelse(is.na(originalseu$DEAlgo_Contaminated),"Low Quality Cell",originalseu$DEAlgo_Contaminated)
+originalseu$DFbfqc <- doublet_b4qc$DFbfqc#dealgoseuobj$DFbfqc
+originalseu$HomoHetero <- dealgoseuobj$HomoHetero
+
+p2 <- DimPlot(originalseu,group.by = "DEAlgo_Contaminated", reduction = "umap",raster=FALSE, cols = c("red","black","grey"))
+p8 <- DimPlot(originalseu, reduction = "umap",group.by = "DFbfqc",raster=FALSE, label = F, sizes.highlight = 0.1, cols = c("red","grey"))
+p9 <- DimPlot(originalseu, reduction = "umap",group.by = "HomoHetero",raster=FALSE, label = F, sizes.highlight = 0.1, cols = c(
+  "red",
+  "#71b84e",
+  "black",
+  "grey"))
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Overlap_Ratio_0.25","_Fig2BFullUmap.png"), p9+p2+p8, height = 8, width = 24, dpi = 300)
+
+

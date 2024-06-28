@@ -1213,12 +1213,14 @@ p2 <- ggplot(final_result_lst2, aes(x = dataset, y = average, color = method)) +
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/Syn_5_Cell_Type_10k_Result_",".png"), p1+p2, height = 2.5, width = 10, dpi = 300)
 
 ###Calculate ROC PRC Curve for each proportion in each run
+DoubletsPerCluster <- 100
 proportion_lst <- c(100,90,80,70,60,50,40,30,20,10,5,1)
 for (seedidx in seq(5)){
   outdirDFs <- paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/Syn_5_Cell_Type_",seedidx,"/")
-  score_DEAlgo <- list()
-  label_lst <- list()
   for (contamper in proportion_lst){
+    score_DEAlgo <- list()
+    label_lst <- list()
+    
     outdirDEAlgo <- paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/Syn_5_Cell_Type_",seedidx,"/","Syn_5_Cell_Type_scCLINIC_",seedidx, "_",contamper,"_Step2/Output_annotation_index/")
     
     pbmc_demuUMAP_Harmony <- readRDS(paste0(outdirDEAlgo,"DEAlgoResult.rds"))
@@ -1328,7 +1330,7 @@ for (seedidx in seq(5)){
       AUROC = unlist(auroclst)
     )
     rownames(auroclst_df) <- 1:nrow(auroclst_df)
-    write.table(auroclst_df,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","ROCPRC_",seedidx, "_",contamper,"_auroc.csv"), sep = ",")
+    write.table(auroclst_df,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/","ROCPRC_",seedidx, "_",contamper,"_auroc.csv"), sep = ",")
     
     #Calculate AUPRC
     auprclst <- list()

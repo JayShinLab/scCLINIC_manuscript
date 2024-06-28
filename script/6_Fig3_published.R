@@ -45,9 +45,218 @@ obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/step1d.rds")
 
 obj <- STEP2B_ContaminationScore(obj,Output,Name,resol,OverlapRatio,gene_n,Cutoff,filteredmatrix,rawmatrix,CELLANNOTATION = TRUE)
 
+####EDIT PLOT
+PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTATION = FALSE, verbose = TRUE){
+  ###No Return
+  message("Plot Contamination Pattern.")
+  
+  if (CELLANNOTATION){
+    message("Using user-annotated clusters.")
+    obj@meta.data$annotation_index <- paste0("M",as.numeric(factor(obj@meta.data[,OverlapRatio])))#change the manual annotation to index, eg. CellType0 CellType1 CellType2 CellType3 to 1 2 3 4
+    OverlapRatio <- "annotation_index" #User manual cellannotation
+  }else{
+    OverlapRatio <- paste0("Overlap_Ratio_",OverlapRatio)
+    message(paste0("Using ",OverlapRatio))
+  }
+  
+  folder_path_Step2_Output <- paste0(Outdir,Name,"_Step2/Output_",OverlapRatio,"/")
+  
+  #Load artifacts information and DEAlgo result rds
+  contamgeneinfo <- read.csv(paste0(folder_path_Step2_Output,"overlaplst_filtered_",OverlapRatio,"_ContaminationInfo.csv"),na.strings = c("", "NA"))
+  
+  #DEAlgo Subcluster ID
+  contamgeneinfo$MajorSub <- paste0(contamgeneinfo$globalcluster,contamgeneinfo$cluster_local)
+  #Summarize ES score and their source of major cluster for each subclusters
+  result <- contamgeneinfo %>%
+    group_by(MajorSub) %>%
+    summarize(
+      cluser_reflst = list(cluster_ref),
+      dp1lst = list(dp1)
+    ) %>%
+    ungroup()
+  
+  # Function to calculate the average ES score (dp1lst) for each source of artifacts (cluster_reflst)
+  tabulate_Cluster_Contribution_Score <- function(cluster_reflst, dp1lst) {
+    components <- unlist(cluster_reflst)
+    dp1_values <- unlist(dp1lst)
+    CCS_Matrix <- tapply(dp1_values, components, mean, na.rm = TRUE)
+    return(CCS_Matrix)
+  }
+  
+  # For each subclusters (each row in result), calculate the average ES score for each source of artifacts
+  tabulate_CCS <- mapply(tabulate_Cluster_Contribution_Score, result$cluser_reflst, result$dp1lst, SIMPLIFY = FALSE)
+  
+  # List of all source of artifacts which contaminated major cluster X
+  lst_of_source_of_artifacts <- unique(unlist(lapply(tabulate_CCS, names)))
+  
+  # Create a matrix, each row represent one subclusters and each column present each source of artifacts, to store the CCS for each major clusters
+  CCS_Matrix <- matrix(NA, nrow = length(tabulate_CCS), ncol = length(lst_of_source_of_artifacts), dimnames = list(NULL, lst_of_source_of_artifacts))
+  
+  # store the CCS for each major clusters in the matrix
+  for (i in seq_along(tabulate_CCS)) {
+    CCS_Matrix[i, names(tabulate_CCS[[i]])] <- tabulate_CCS[[i]]
+  }
+  
+  # Replace NA with 0
+  CCS_Matrix[is.na(CCS_Matrix)] <- 0
+  
+  # Convert to dataframe for plotting
+  CCS_Matrix <- as.data.frame(CCS_Matrix)
+  CCS_Matrix$MajorSub <- result$MajorSub #Named each rows with their Subclusters ID
+  data <- CCS_Matrix %>%
+    pivot_longer(cols = -MajorSub, names_to = "Component", values_to = "value") #dependency tidyr
+  
+  for (clusterx in unique(obj@meta.data[,OverlapRatio])){
+    # Filter out other clusters, only keep cluster X which wish to display
+    filtered_data <- data %>%
+      dplyr::filter(startsWith(MajorSub, clusterx))
+    
+    if (nrow(filtered_data) != 0){
+      message(paste0("Plot Contamination Pattern ",clusterx))
+      # Stacked Plot of CCS vs Subclusters
+      p1 <- ggplot(filtered_data, aes(fill=Component, y=value, x=MajorSub)) +
+        geom_bar(position="stack", stat="identity")+
+        labs(title = paste0(clusterx),
+             x = "Subclusters",
+             y = "Contamination Score") +
+        scale_fill_manual(values = viridis(length(lst_of_source_of_artifacts)),
+                          name = "Source of artifacts") +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+              axis.title.x = element_text(size = 8),  # Adjust x-axis title size
+              axis.title.y = element_text(size = 8))
+      
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreStackPlot",clusterx,".png"), p1, height = 8, width = 8, dpi = 300)
+      
+      # Heatmap
+      # filtered_data$value[startsWith(as.character(filtered_data$MajorSub), substr(as.character(filtered_data$Component), 1, 2))] <- 0
+      # COnvert dataframe
+      heatmap_data <- dcast(filtered_data, MajorSub ~ Component, value.var = "value")
+      heatmap_data <- heatmap_data[, !colnames(heatmap_data) %in% clusterx]#remove itself as source of artifacts
+      
+      rownames(heatmap_data) <- heatmap_data$MajorSub #Named rownames as the subcluster ID (MajorSub)
+      heatmap_data$MajorSub <- NULL #remove MajorSub columns
+      
+      #heatmap_data$Total <- rowSums(heatmap_data,na.rm = TRUE)
+      
+      # Summarize DEAlgo Contamination Score (CS) of each subclusters
+      CS_table <- obj@meta.data %>%
+        group_by(DEAlgo_ClusterID) %>%
+        summarize(
+          DiffDP1_sum = mean(DiffDP1_sum), #DiffDP1_sum of each cells within each subclusters are same value...
+        ) %>%
+        ungroup()
+      
+      #Convert to plotting dataframe
+      heatmap_data <- as.data.frame(heatmap_data)  # Convert heatmap_data to a dataframe
+      heatmap_data <- heatmap_data %>%
+        mutate(Score = CS_table$DiffDP1_sum[match(rownames(heatmap_data), CS_table$DEAlgo_ClusterID)]) #Score
+      
+      # Convert data to matrix
+      heatmap_matrix <- as.matrix(heatmap_data)
+      
+      # Calculate the color scale for heatmap based on quantile breaks
+      quantile_breaks <- function(xs, n = 10) {
+        breaks <- quantile(xs, probs = seq(0, 1, length.out = n))
+        breaks[!duplicated(breaks)]
+      }
+      mat_breaks <- quantile_breaks(heatmap_matrix, n = 100)
+      
+      # Create heatmap
+      p2 <- pheatmap(heatmap_matrix,
+                     cluster_rows = FALSE,  # Do not cluster rows
+                     cluster_cols = FALSE,  # Do not cluster columns
+                     main = paste0(clusterx),
+                     na_col = "grey",  # Fill missing values with grey
+                     color             = viridis(length(mat_breaks) - 1),
+                     breaks            = mat_breaks,
+                     labels_row = rownames(heatmap_matrix),
+                     labels_col = colnames(heatmap_matrix),
+                     show_rownames = TRUE,  # Show row names
+                     show_colnames = TRUE,
+                     angle_col = 0)
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreHeatmap",clusterx,".png"), p2, height = 2.8, width = 8, dpi = 300)
+      
+      # Plot multicolumn bar plot
+      multicolplot <- data.frame((heatmap_matrix))
+      
+      rownames_sorted <- rownames(multicolplot)[order(as.numeric(gsub(".*S", "", rownames(multicolplot))),decreasing = T)]
+      
+      # Reorder the heatmap matrix rows according to the sorted row names
+      multicolplot <- multicolplot[rownames_sorted, ]
+      
+      colnames_sorted <- colnames(multicolplot)[order(as.numeric(gsub("M", "", colnames(multicolplot))),decreasing = F)]
+      
+      # Reorder the heatmap matrix rows according to the sorted row names
+      multicolplot <- multicolplot[,colnames_sorted]
+      
+      multicolplot$Category <- as.character(rownames(multicolplot))
+      
+      multicolplot$Category <- factor(multicolplot$Category, levels = rownames_sorted)
+      
+      x_limits <- c(0, ceiling(max(multicolplot[, -ncol(multicolplot)], na.rm = TRUE) * 100) / 100)
+      custom_breaks <- seq( x_limits[1], x_limits[2], length.out = 3)
+      text_size = 5
+
+      plot_list <- list()
+      for (i in seq(colnames_sorted)) {
+        clus <- colnames_sorted[i]
+        p <- ggplot(multicolplot, aes_string(x = "Category", y = clus)) +
+          geom_bar(stat = "identity", fill = viridis(length(colnames_sorted))[i]) +
+          labs(title = paste(clus), y ="", x ="") +  # Set y-axis label for the first plot only
+          theme_minimal()+
+          theme(panel.grid = element_blank(),axis.line = element_line(color = "black"),
+                axis.text = element_text(size = text_size),
+                axis.title = element_text(size = text_size),
+                plot.title = element_text(size = text_size)) +
+          coord_flip()+
+          #ylim(x_limits)+
+          scale_y_continuous(breaks = custom_breaks, limits = x_limits)+
+          if (i != 1){
+            theme(axis.text.y = element_blank())
+          }
+        # Add the plot to the list
+        plot_list[[i]] <- p
+      }
+      
+      widths <- c(6.2, rep(5, length(plot_list) - 1))
+      
+      g1 <- grid.arrange(grobs = plot_list, ncol = length(plot_list),right = "",widths = widths)
+      ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScore",clusterx,".png"),g1,  height = 2.5, width = 8, dpi = 300)
+      
+    }
+  }
+  
+  ###Plot Source of Artifacts Contamination Patterns
+  #Plotting and visualize the DEAlgo score of each source of artifacts on the major cluster's UMAP,
+  p1 <- FeaturePlot(obj,features = colnames(CCS_Matrix)[colnames(CCS_Matrix) != "MajorSub"])
+  ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationPattern_SourceOfArtifacts",".png"),p1,  height = 20, width = 20, dpi = 300)
+  
+  folder_path_Step2_L1R <- paste0(Outdir,Name,"_Step2/",OverlapRatio,"_recluster/")
+  folder_path_Step2_L1R_Marker <- paste0(Outdir,Name,"_Step2/",OverlapRatio,"_recluster/Marker/")
+  
+  qcsclst <- sort(unique(obj@meta.data[,OverlapRatio]))#list of major clusters seurat ID
+  cluster_to_consider <- list()
+  for (i in sort(qcsclst)){
+    file_name <- paste0(OverlapRatio,"_cluster_",i,".csv")
+    if (file_name %in% list.files(folder_path_Step2_L1R_Marker)){
+      cluster_to_consider <- unlist(c(cluster_to_consider,i))
+    }
+  }
+  
+  for (i in cluster_to_consider){
+    file_name <- paste0(OverlapRatio,"_cluster_",i,".rds")
+    if (file_name %in% list.files(folder_path_Step2_L1R)){
+      recluster <- readRDS(paste0(folder_path_Step2_L1R,file_name))
+      recluster@meta.data <- obj@meta.data[rownames(recluster@meta.data),]#copy-paste the metadata of updated seurat object to subcluster's metadata
+      #Plotting and visualize the DEAlgo score of each source of artifacts on the subcluster's UMAP,
+      p1 <- FeaturePlot(recluster, features = colnames(CCS_Matrix)[!colnames(CCS_Matrix) %in% c("MajorSub", i)])
+      ggsave(filename = paste0(folder_path_Step2_Output,OverlapRatio,"_cluster_",i,"_ContaminationPattern_SourceofArtifacts.png"), p1, height = 10, width = 10, dpi = 300)
+    }
+  }
+}
+obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/DEAlgoResult.rds")
 PlotContaminationPattern(obj,Output,Name,OverlapRatio,CELLANNOTATION = TRUE)
-
-
 #DF
 ###################################################
 ## Step 2: Perform and summarize parameter sweep ##
@@ -106,7 +315,29 @@ dealgoseuobj@meta.data$DFafqc <- doublet_afqc@meta.data[, grep("DF.",  colnames(
 
 dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
 
+dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
+dealgoseuobj$dealgocontamclus <- ifelse(dealgoseuobj$DEAlgo_Contaminated == "Artifact", dealgoseuobj$DEAlgo_ClusterID, NA)
 
+for (i in c("M8","M4","M5","M1")){
+  file_name <- paste0("annotation_index","_cluster_",i,".rds")
+  recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/",file_name))
+  
+  recluster$DEAlgo_ClusterID <- dealgoseuobj$DEAlgo_ClusterID
+  recluster$DiffDP1_sum <- dealgoseuobj$DiffDP1_sum
+  recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
+  recluster$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
+  recluster$dealgocontamclus <- dealgoseuobj$dealgocontamclus 
+  
+  p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE,  sizes.highlight = 0.1)
+  p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
+  p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
+  p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
+  
+  p3 <- DimPlot(recluster, group.by = "dealgocontamclus")
+  
+  ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3_cluster_",i,"_ID.png"), p7+p5+p8+p4+p3, height = 10, width = 17, dpi = 300)
+  
+}
 library(ggrepel)
 library(dplyr)
 
@@ -144,7 +375,7 @@ for (i in cluster_to_consider){
       p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
       p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
       p1 <- FeaturePlot(recluster, reduction = "umap",features = "DFafqc_pANN")
-      p0 <- DimPlot(recluster, reduction = "umap",group.by = "DFafqc",raster=FALSE,  sizes.highlight = 0.1)
+      p0 <- DimPlot(recluster, reduction = "umap",group.by = "DFafqc",raster=FALSE,  sizes.highlight = 0.1, cols = c("red","grey"))
       
       ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3_cluster_",i,"_rawscore_Validate.png"), p7+p5+p8+p4+p0+p1, height = 10, width = 17, dpi = 300)
       
@@ -152,14 +383,23 @@ for (i in cluster_to_consider){
   }
 }
 
-p1 <- DimPlot(dealgoseuobj,group.by = "CT.Park", reduction = "umap",raster=FALSE)
+p1 <- DimPlot(dealgoseuobj,group.by = "CT.Park", reduction = "umap",raster=FALSE,cols=c(
+  "#7c4ccb",
+  "#53a0b9",
+  "#71b84e",
+  "#c4944a",
+  "#4e336c",
+  "#597b4a",
+  "#d55046",
+  "#cf4ba6"
+))
 p3 <- FeaturePlot(dealgoseuobj,features = "DiffDP1_sum", reduction = "umap",raster=FALSE, label = F) #& scale_color_gradient(limits = c(0, 1))
 p5 <- FeaturePlot(dealgoseuobj, reduction = "umap",features = "DFafqc_pANN")
 p7 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DFafqc",raster=FALSE,  sizes.highlight = 0.1)
 p11 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
 p12 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
 
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3b.png"), p1 + p12 + p3 + p11 + p7 + p5, height = 15, width = 30, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3b.png"), p1 + p12 + p3 + p11 + p7 + p5, height = 20, width = 30, dpi = 300)
 
 
 celltype <- dealgoseuobj@meta.data$CT.Park
@@ -196,8 +436,8 @@ Contam1CellNDF <- subset(Contam1Cell,subset = DFafqc == "Singlet")
 
 noncontam1$grouping <- NA
 noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(negative), "Singlet",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "NDF",noncontam1$grouping)
+noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF+scCLINIC",noncontam1$grouping)
+noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "scCLINIC",noncontam1$grouping)
 
 
 # expall <- AverageExpression(noncontam1,group.by = "grouping",slot = "data")
@@ -251,21 +491,21 @@ data3 <- data.frame(Gene = names(Contam1CellNDFexp_res), Value = Contam1CellNDFe
 
 # Combine all data frames
 all_data <- rbind(data_negative, data3, data2)
-all_data$Condition <- factor(rep(c("Singlet", "DEAlgo", "DF+DEAlgo"), each = length(names(negative_res))),levels = c("DF+DEAlgo", "DEAlgo","Singlet"))
+all_data$Condition <- factor(rep(c("Singlet", "scCLINIC", "DF+scCLINIC"), each = length(names(negative_res))),levels = c("DF+scCLINIC", "scCLINIC","Singlet"))
 # all_data <- rbind(all_data,reshaped_df)
 # Create the violin plot with scatter plot
-partial_contamination_data <- subset(all_data, Condition == "DEAlgo" & Value > 6)
+partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 7.5)
 
 p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition)) +
   geom_violin(color = alpha("black",0.25)) +
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   geom_point(aes(color = Condition), size = 1, alpha = 0.4, position = position_jitter(width = 0.2)) +
   geom_text_repel(data = partial_contamination_data, aes(label = Gene), 
-                  hjust = 0.5, vjust = 0, segment.color = "transparent", size = 2,position = position_jitter(width = 0.2))+
+                  hjust = 0.5, vjust = 1, segment.color = "transparent", size = 4,position = position_jitter(width = 0.2))+
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "line", aes(group = 1), linetype = "dashed", color = alpha("black",0.5), size = 0.5, position = position_dodge(width = 0.75)) + # Add average line
   
-  theme_minimal() +
+  theme_minimal(base_size = 14) +
   scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
   scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
@@ -281,7 +521,7 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse
 # Perform pairwise t-tests
 pairwise_result <- pairwise.t.test(all_data$Value, all_data$Condition)
 
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_intersect.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_Expression.csv"),sep = ",")
 
 
 partial_contamination_data <- subset(all_data, Condition == "Partial Contamination" & Value > 5)
@@ -292,7 +532,7 @@ p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, group = G
                   hjust = 0.5, vjust = 0.5, segment.color = "transparent")+
   labs(title = "", x = "", y = "Average Expression Level") +
   scale_color_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
-  theme_minimal()+
+  theme_minimal(base_size = 14)+
   theme(legend.position = "none")
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_geomline.png"), p1, height = 5, width = 5, dpi = 300)
 
@@ -301,7 +541,7 @@ p <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "black", position = position_dodge(width = 0.75)) +
-  theme_minimal() +
+  theme_minimal(base_size = 14) +
   scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
   scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
@@ -311,23 +551,23 @@ p <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount.png"), p, height = 5, width = 5, dpi = 300)
 
 pairwise_result <- pairwise.t.test(noncontam1$nCount_RNA, noncontam1$grouping)
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nCount.csv"),sep = ",")
 
 p <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "black", position = position_dodge(width = 0.75)) +
-  theme_minimal() +
+  theme_minimal(base_size = 14) +
   scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
   scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
        x = "",
        y = "nFeature_RNA") +
   theme(legend.position = "none") # Remove legend
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nFeature_RNA.png"), p, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nFeature.png"), p, height = 5, width = 5, dpi = 300)
 
 pairwise_result <- pairwise.t.test(noncontam1$nFeature_RNA, noncontam1$grouping)
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nFeature_RNA.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nFeature.csv"),sep = ",")
 
 #Partial contamination by multiple cell type in Endo (M5)
 DEAlgoContam1 <- c("M5S5","M5S4")#Pure DBSCAN G7L2 G6L2 G3L2 with other G2L3 (V) G4L2 (X)
@@ -342,8 +582,8 @@ Contam1CellNDF <- subset(Contam1Cell,subset = DFafqc == "Singlet")
 
 noncontam1$grouping <- "NA"
 noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(negative), "Singlet",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "NDF",noncontam1$grouping)
+noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF+scCLINIC",noncontam1$grouping)
+noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "scCLINIC",noncontam1$grouping)
 
 negativeexp <- AverageExpression(negative,group.by = "all",slot = "data")
 Contam1CellDFexp <- AverageExpression(Contam1CellDF,group.by = "all",slot = "data")
@@ -397,28 +637,28 @@ data3 <- data.frame(Gene = names(Contam1CellNDFexp_res), Value = Contam1CellNDFe
 
 # Combine all data frames
 all_data <- rbind(data_negative, data2, data3)
-all_data$Condition <- factor(rep(c("Singlet", "DF+DEAlgo","DEAlgo"), each = length(names(negative_res))),levels = c("DF+DEAlgo","DEAlgo","Singlet"))
-partial_contamination_data <- subset(all_data, Condition == "DEAlgo" & Value > 6)
+all_data$Condition <- factor(rep(c("Singlet", "DF+scCLINIC","scCLINIC"), each = length(names(negative_res))),levels = c("DF+scCLINIC","scCLINIC","Singlet"))
+partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 6)
 #all_data <- rbind(all_data,reshaped_df)
 # Create the violin plot with scatter plot
 p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, color = as.factor(Ref), group = Condition)) +
   geom_violin(color = alpha("black", 0.25)) +
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white", outlier.shape = NA) +
-  geom_text_repel(data = partial_contamination_data, aes(label = Gene), segment.color = "transparent", size = 2,position = position_jitter(width = 0.2))+
+  geom_text_repel(data = partial_contamination_data, aes(label = Gene), segment.color = "transparent", size = 4,position = position_jitter(width = 0.2))+
   geom_point(size = 1, alpha = 0.4, position = position_jitter(width = 0.2)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "line", aes(group = 1), linetype = "dashed", color = alpha("black",0.5), size = 0.5, position = position_dodge(width = 0.75)) + # Add average line
   
-  scale_color_manual(values = c("#648ace", "#cc5143", "#58a865","#9671c3")) +  # Custom colors based on Ref
+  scale_color_manual(values = c("#9671c3","#648ace", "#c4944a", "#58a865")) +  # Custom colors based on Ref, "#648ace", "#cc5143", "#58a865","#9671c3" colored "CollDuctIC","CollDuctPC","DistProxTubule","LoopofHenle" respectively
   scale_fill_manual(values = c("white","white", "white")) + # Specify fill colors
-  theme_minimal() +
-  labs(title = "", x = "", y = "CD-PC, LOH, CD-IC Marker Average Expression Level") +
+  theme_minimal(base_size = 14) +
+  labs(title = "", x = "", y = "CD-IC CD-PC DCT LOH Marker\nAverage Expression Level") +
   theme(legend.position = "none") # Remove legend
 
 
 pairwise_result <- pairwise.t.test(all_data$Value, all_data$Condition)
 
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_marker_multipleDFDEAlgo.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_Expression.csv"),sep = ",")
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_B.png"), p1, height = 5, width = 5, dpi = 300)
 
 partial_contamination_data <- subset(all_data, Condition == "Partial Contamination" & Value > 5)
@@ -428,18 +668,18 @@ p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, color = a
   geom_text_repel(data = partial_contamination_data, aes(label = Gene),
                   hjust = -0.5, segment.color = "transparent")+
   labs(title = "", x = "", y = "Average Expression Level") +
-  scale_color_manual(values = c("#648ace", "#cc5143", "#58a865","#9671c3")) + # Specify fill colors
+  scale_color_manual(values = c("#9671c3","#648ace", "#c4944a", "#58a865")) + # Specify fill colors
   theme_minimal()+
   theme(legend.position = "none")
 
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_marker_multipleDFDEAlgogeomline.png"), p1, height = 5, width = 5, dpi = 300)
 
-noncontam1 <- subset(noncontam1,subset = grouping %in% c("DF","NDF","Singlet"))
+noncontam1 <- subset(noncontam1,subset = grouping %in% c("DF+scCLINIC","scCLINIC","Singlet"))
 p1 <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
-  theme_minimal() +
+  theme_minimal(base_size = 14) +
   scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
   scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
@@ -449,13 +689,13 @@ p1 <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount_RNAMultiple.png"), p1, height = 5, width = 5, dpi = 300)
 
 pairwise_result <- pairwise.t.test(noncontam1$nCount_RNA, noncontam1$grouping)
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount_RNAMultiple.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_nCount.csv"),sep = ",")
 
 p1 <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
-  theme_minimal() +
+  theme_minimal(base_size = 14) +
   scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
   scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
@@ -465,27 +705,27 @@ p1 <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nFeature_RNAMultiple.png"), p1, height = 5, width = 5, dpi = 300)
 
 pairwise_result <- pairwise.t.test(noncontam1$nFeature_RNA, noncontam1$grouping)
-write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nFeature_RNAMultiple.csv"),sep = ",")
+write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_nFeature.csv"),sep = ",")
 
 
 
 #Triplet Contam
-color4marker <- c("#e63c29", "#e63c29","#9146ec","#ed9307","#e63c29", "#008000","#9146ec")
-markertoseelist <- c("Apela","Npnt","Tspan13","Slc12a3","Scnn1b","Slc5a3","Itpr2")
+color4marker <- c( "#1e88e5",  "#1e88e5","#9146ec","#ed9307",  "#1e88e5", "#008000","#9146ec")
+markertoseelist <- c("Apela","Npnt","Tspan13","Slc12a3","Scnn1b","Slc5a3","Itpr2") #Slc12a3 M4, Scnn1b M2, Slc5a3 M6, Itpr2 M1
 limitlst <- c(5,4,4,6,4,4,4)
 plot_list <- list()
 plot_list1 <- list()
 for (markertosee in seq(length(markertoseelist))){
   recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/","annotation_index_cluster_","M5",".rds"))
   p2<- FeaturePlot(dealgoseuobj, reduction = "umap",features = markertoseelist[markertosee], pt.size = 0.05)+scale_color_gradientn( colours = c('lightgrey', color4marker[markertosee]),  limits = c(0, limitlst[markertosee])) 
-  p1 <- FeaturePlot(recluster, reduction = "umap",features = markertoseelist[markertosee], pt.size = 0.1)+scale_color_gradientn( colours = c('lightgrey', color4marker[markertosee]),  limits = c(0, limitlst[markertosee]))
+  p1 <- FeaturePlot(recluster, reduction = "umap",features = markertoseelist[markertosee], pt.size = 0.5)+scale_color_gradientn( colours = c('lightgrey', color4marker[markertosee]),  limits = c(0, limitlst[markertosee]))
   plot_list[[markertosee]] <- p1
   plot_list1[[markertosee]] <- p2
 }
 
 all_plots <- grid.arrange(grobs = plot_list, nrow = 2, ncol = ceiling(length(markertoseelist)/2))
 all_plots1 <- grid.arrange(grobs = plot_list1, nrow = 2, ncol = ceiling(length(markertoseelist)/2))
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig33W.png"), plot = all_plots, height = 6, width = 13, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3_0.5.png"), plot = all_plots, height = 6, width = 13, dpi = 300)
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3BW.png"), plot = all_plots1, height = 12, width = 23, dpi = 300)
 
 
@@ -501,7 +741,7 @@ for (markertosee in c("Slc34a1","Acsm2","Slc27a2","Dnase1","Miox","Pck1","Ass1",
     
     recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/","annotation_index_cluster_",curcelltype,".rds"))
     
-    p1 <- FeaturePlot(recluster, reduction = "umap",features = markertosee, pt.size = 0.1)#DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE, label = T, sizes.highlight = 0.1)
+    p1 <- FeaturePlot(recluster, reduction = "umap",features = markertosee, pt.size = 0.1) & scale_color_gradientn(colors = c("grey","red"),limits = c(0, 5))#DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE, label = T, sizes.highlight = 0.1)
     #ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/",curcelltype,"_marker_",markertosee,".png"), p1, height = 5, width = 5, dpi = 300)
     plot_list[[curcelltype]] <- p1
   }
@@ -577,7 +817,9 @@ CCS_Matrix$MajorSub <- result$MajorSub #Named each rows with their Subclusters I
 data <- CCS_Matrix %>%
   pivot_longer(cols = -MajorSub, names_to = "Component", values_to = "value") #dependency tidyr
 
-filtered_data <- data #keep all clusters
+filtered_data <- data %>%
+  dplyr::filter(grepl("^(M8|M5|M4|M1)", MajorSub))
+#filtered_data <- data #keep all clusters
 
 # Heatmap
 # filtered_data$value[startsWith(as.character(filtered_data$MajorSub), substr(as.character(filtered_data$Component), 1, 2))] <- 0
@@ -613,6 +855,31 @@ mat_breaks <- quantile_breaks(heatmap_matrix, n = 100)
 
 # Create heatmap
 heatmap_matrix_t <- t(heatmap_matrix)
+
+# Define the function to set values to NA based on matching row and column
+set_na_for_matching <- function(matrix) {
+  for (row_name in rownames(matrix)) {
+    # Extract the identifier (e.g., "M1" from "M1S0")
+    row_prefix <- sub("S[0-9]+", "", row_name)
+    for (col_name in colnames(matrix)) {
+      # Check if column starts with the row prefix
+      if (startsWith(col_name, row_prefix)) {
+        matrix[row_name, col_name] <- NA
+      }
+    }
+  }
+  return(matrix)
+}
+
+# Apply the function to the data frame
+heatmap_matrix_t <- set_na_for_matching(heatmap_matrix_t)
+
+
+asteriskcut = 0.0660 #elbow point level 3 0.0660800284896678
+test_labels <- as.matrix(heatmap_matrix_t) 
+test_labels[test_labels > asteriskcut] <- "\u2217"
+test_labels[test_labels != "\u2217" | is.na(test_labels)] <- ""
+
 p2 <- pheatmap(heatmap_matrix_t,
                cluster_rows = FALSE,  # Do not cluster rows
                cluster_cols = FALSE,  # Do not cluster columns
@@ -625,8 +892,12 @@ p2 <- pheatmap(heatmap_matrix_t,
                show_colnames = TRUE,
                angle_col = 90,
                fontsize_row = 16,  # Adjust row font size
-               fontsize_col = 16)
-ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreHeatmap_Fig3",".png"), p2, height = 4, width = 30, dpi = 300)
+               fontsize_col = 16,
+               display_numbers = test_labels, #https://stackoverflow.com/questions/54342274/pheatmap-display-numbers-argument pheatmap(, display_numbers = test_labels, fontsize_number=20, cellheight=20)
+               fontsize = 25)
+
+
+ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScoreHeatmap_Fig3",".png"), p2, height = 4, width = 17, dpi = 300)
 
 # Plot multicolumn bar plot
 multicolplot <- data.frame((heatmap_matrix))

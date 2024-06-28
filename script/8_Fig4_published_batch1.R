@@ -15,7 +15,7 @@ library(Seurat)
 GOgmt <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/GOgmt.rds")
 Hgmt <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Hgmt.rds")
 
-singletlevel = 7
+singletlevel = 6
 dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Output_Overlap_Ratio_0.5/DEAlgoResult.rds"))
 doublet_afqc <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/adinatobjQC.rds"))
 
