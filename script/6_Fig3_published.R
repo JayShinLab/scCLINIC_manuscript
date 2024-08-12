@@ -31,15 +31,15 @@ Cutoff=0
 gene_n=150
 CELLANNOTATION = TRUE
 
-obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/seu_kidney_codeocean_updated.rds")
-
-obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
-
-obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold,CELLANNOTATION = TRUE)
-
-saveRDS(obj,"~/DEAlgoManuscript/Manuscript_Figures/Fig3/step1d.rds")
-
-STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
+# obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/seu_kidney_codeocean_updated.rds")
+# 
+# obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
+# 
+# obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold,CELLANNOTATION = TRUE)
+# 
+# saveRDS(obj,"~/DEAlgoManuscript/Manuscript_Figures/Fig3/step1d.rds")
+# 
+# STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n,CELLANNOTATION = TRUE)
 
 obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/step1d.rds")
 
@@ -196,7 +196,9 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
       
       x_limits <- c(0, ceiling(max(multicolplot[, -ncol(multicolplot)], na.rm = TRUE) * 100) / 100)
       custom_breaks <- seq( x_limits[1], x_limits[2], length.out = 3)
-      text_size = 5
+      
+      
+      text_size = 10
 
       plot_list <- list()
       for (i in seq(colnames_sorted)) {
@@ -205,10 +207,12 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
           geom_bar(stat = "identity", fill = viridis(length(colnames_sorted))[i]) +
           labs(title = paste(clus), y ="", x ="") +  # Set y-axis label for the first plot only
           theme_minimal()+
-          theme(panel.grid = element_blank(),axis.line = element_line(color = "black"),
-                axis.text = element_text(size = text_size),
-                axis.title = element_text(size = text_size),
-                plot.title = element_text(size = text_size)) +
+          theme(panel.grid = element_line(color = "grey", size = 0.5),axis.line = element_line(color = "black"),
+                #panel.grid.major.x = element_blank(), 
+                axis.text = element_text(size = text_size, family = "Arial"),
+                axis.title = element_text(size = text_size, family = "Arial"),
+                plot.title = element_text(size = text_size, family = "Arial"),
+                axis.text.x = element_blank()) +
           coord_flip()+
           #ylim(x_limits)+
           scale_y_continuous(breaks = custom_breaks, limits = x_limits)+
@@ -219,7 +223,7 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
         plot_list[[i]] <- p
       }
       
-      widths <- c(6.2, rep(5, length(plot_list) - 1))
+      widths <- c(6.5, rep(5, length(plot_list) - 1))
       
       g1 <- grid.arrange(grobs = plot_list, ncol = length(plot_list),right = "",widths = widths)
       ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScore",clusterx,".png"),g1,  height = 2.5, width = 8, dpi = 300)
@@ -255,7 +259,9 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
     }
   }
 }
-obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/DEAlgoResult.rds")
+obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/scCLINICResult.rds")
+original_obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/seu_kidney_codeocean_updated.rds")
+obj$CT.Park <- original_obj$CT.Park
 PlotContaminationPattern(obj,Output,Name,OverlapRatio,CELLANNOTATION = TRUE)
 #DF
 ###################################################
@@ -318,7 +324,7 @@ dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgo
 dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
 dealgoseuobj$dealgocontamclus <- ifelse(dealgoseuobj$DEAlgo_Contaminated == "Artifact", dealgoseuobj$DEAlgo_ClusterID, NA)
 
-for (i in c("M8","M4","M5","M1")){
+for (i in c("M8","M4","M5","M1","M2","M6")){ #No M3
   file_name <- paste0("annotation_index","_cluster_",i,".rds")
   recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/",file_name))
   
@@ -327,15 +333,44 @@ for (i in c("M8","M4","M5","M1")){
   recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
   recluster$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
   recluster$dealgocontamclus <- dealgoseuobj$dealgocontamclus 
+  recluster$dfpredicted <- dealgoseuobj$DFafqc
+  recluster$dfscore <- dealgoseuobj$DFafqc_pANN
   
   p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE,  sizes.highlight = 0.1)
   p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
   p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
   p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
+  p9 <- FeaturePlot(recluster, reduction = "umap",features = "dfscore")
+  p10 <- DimPlot(recluster, reduction = "umap",group.by = "dfpredicted",raster=FALSE,  sizes.highlight = 0.1)
   
   p3 <- DimPlot(recluster, group.by = "dealgocontamclus")
   
-  ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3_cluster_",i,"_ID.png"), p7+p5+p8+p4+p3, height = 10, width = 17, dpi = 300)
+  ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3_cluster_",i,"_ID.png"), p5+p8+p4+p3+p9+p10, height = 10, width = 17, dpi = 300)
+  
+}
+
+for (i in c("M7")){ #No M3
+  file_name <- paste0("annotation_index","_cluster_",i,".rds")
+  recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/",file_name))
+  
+  recluster$DEAlgo_ClusterID <- dealgoseuobj$DEAlgo_ClusterID
+  recluster$DiffDP1_sum <- dealgoseuobj$DiffDP1_sum
+  recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
+  recluster$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
+  recluster$dealgocontamclus <- dealgoseuobj$dealgocontamclus 
+  recluster$dfpredicted <- dealgoseuobj$DFafqc
+  recluster$dfscore <- dealgoseuobj$DFafqc_pANN
+  
+  p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE,  sizes.highlight = 0.1)
+  #p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
+  p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
+  p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
+  
+  #p3 <- DimPlot(recluster, group.by = "dealgocontamclus")
+  p9 <- FeaturePlot(recluster, reduction = "umap",features = "dfscore")
+  p10 <- DimPlot(recluster, reduction = "umap",group.by = "dfpredicted",raster=FALSE,  sizes.highlight = 0.1)
+  
+  ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","Fig3_cluster_",i,"_ID.png"), p7+p5+p4+p9+p10, height = 10, width = 17, dpi = 300)
   
 }
 library(ggrepel)
@@ -427,28 +462,25 @@ table(dealgoseuobj$DFafqc)
 DEAlgoContam1 <- c("M1S4","M2S6","M4S0","M5S0","M6S5","M8S2")#Stroma (M8), Endo (M5), Dist.Prox.Tubule (M4), Coll.Duct.IC (M1), Loop of Henle (M6)
 
 Contam1Cell <- subset(dealgoseuobj,subset = DEAlgo_ClusterID %in% DEAlgoContam1)
-noncontam1 <- subset(dealgoseuobj,subset = L0 %in% c("M1","M2","M4","M5","M6","M8"))
+Contam1CellDF <- subset(Contam1Cell,subset = DFafqc == "Doublet") # scCLINIC + DF
+Contam1CellNDF <- subset(Contam1Cell,subset = DFafqc == "Singlet") # scCLINIC
 
-negative <- noncontam1[,!(noncontam1$DEAlgo_ClusterID %in% DEAlgoContam1)]
-Contam1CellDF <- subset(Contam1Cell,subset = DFafqc == "Doublet")
-Contam1CellNDF <- subset(Contam1Cell,subset = DFafqc == "Singlet")
-
-
-noncontam1$grouping <- NA
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(negative), "Singlet",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF+scCLINIC",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "scCLINIC",noncontam1$grouping)
+negative_others <- dealgoseuobj[,dealgoseuobj$DEAlgo_Contaminated == "Singlet" & dealgoseuobj$DFafqc == "Singlet" & !(dealgoseuobj$L0 == "M7")]
+negative_PT <- dealgoseuobj[,dealgoseuobj$DEAlgo_Contaminated == "Singlet" & dealgoseuobj$DFafqc == "Singlet" & (dealgoseuobj$L0 == "M7")]
 
 
-# expall <- AverageExpression(noncontam1,group.by = "grouping",slot = "data")
-#pseudo_ifnb <- AggregateExpression(noncontam1, assays = "RNA", group.by = "grouping")#IF return.seurat = T mean normalized again? so should I
-#pseudodata <- pseudo_ifnb@assays$RNA$data
+dealgoseuobj$grouping <- NA
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(negative_PT), "PT-Singlet",dealgoseuobj$grouping)
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(Contam1CellDF), "DF+scCLINIC",dealgoseuobj$grouping)
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(Contam1CellNDF), "scCLINIC",dealgoseuobj$grouping)
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(negative_others), "Others-Singlet",dealgoseuobj$grouping)
+ncountobjplot <- dealgoseuobj[,! is.na(dealgoseuobj$grouping)]
 
-
-negativeexp <- AverageExpression(negative,group.by = "all",slot = "data")
-Contam1CellDFexp <- AverageExpression(Contam1CellDF,group.by = "all",slot = "data")
-Contam1CellNDFexp <- AverageExpression(Contam1CellNDF,group.by = "all",slot = "data")
-Contam1CellNDFexp_split <- AverageExpression(Contam1CellNDF,group.by = "DEAlgo_ClusterID",slot = "data")
+negativeexp <- AverageExpression(negative_others,group.by = "all",slot = "counts")
+negativePTexp <- AverageExpression(negative_PT,group.by = "all",slot = "counts")
+Contam1CellDFexp <- AverageExpression(Contam1CellDF,group.by = "all",slot = "counts")
+Contam1CellNDFexp <- AverageExpression(Contam1CellNDF,group.by = "all",slot = "counts")
+Contam1CellNDFexp_split <- AverageExpression(Contam1CellNDF,group.by = "DEAlgo_ClusterID",slot = "counts")
 
 contam1gene <- read.csv("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/overlaplst_filtered_annotation_index_ContaminationInfo.csv",na.strings = c("", "NA"))
 PTMarkergene <- read.csv("~/DEAlgoManuscript/PTMarkerGene.csv",na.strings = c("", "NA"))
@@ -457,44 +489,25 @@ PTMarkergenelist <- unique(PTMarkergene$genes)
 
 intersection <- intersect(contam1genelist, PTMarkergenelist)
 
-# filtered_PTMarkergenelist <- PTMarkergenelist[!PTMarkergenelist %in% "Fth1"]
-# negative_res <- negativeexp$RNA[filtered_PTMarkergenelist,]
-# Contam1CellDFexp_res <- Contam1CellDFexp$RNA[filtered_PTMarkergenelist,]
-# Contam1CellNDFexp_res <- Contam1CellNDFexp$RNA[filtered_PTMarkergenelist,]
-# 
-# Contam1CellNDFexp_split_res <- Contam1CellNDFexp_split$RNA[filtered_PTMarkergenelist,]
-
 negative_res <- negativeexp$RNA[intersection,]
+negativePT_res <- negativePTexp$RNA[intersection,]
 Contam1CellDFexp_res <- Contam1CellDFexp$RNA[intersection,]
 Contam1CellNDFexp_res <- Contam1CellNDFexp$RNA[intersection,]
 
-# expallres <- expall$RNA[filtered_PTMarkergenelist,]
-# # Get gene names from row names
-# Convert sparse matrix to data frame
-# expallres_df <- as.data.frame(as(Contam1CellNDFexp_split_res, "matrix"))
-# expallres_df$Gene <- rownames(expallres_df)
-# 
-# # Reshape data frame
-# reshaped_df <- reshape2::melt(expallres_df, id.vars = "Gene", variable.name = "Condition", value.name = "Value")
-
-# Load necessary libraries
-#69a75f
-#9671c3
-#be883d
-#cc5366
-
 library(ggplot2)
+library(ggrepel)
 # Create data frames for each condition
 data_negative <- data.frame(Gene = names(negative_res), Value = negative_res)
+data_negative_PT <- data.frame(Gene = names(negativePT_res), Value = negativePT_res)
 data2 <- data.frame(Gene = names(Contam1CellDFexp_res), Value = Contam1CellDFexp_res)
 data3 <- data.frame(Gene = names(Contam1CellNDFexp_res), Value = Contam1CellNDFexp_res)
 
 # Combine all data frames
-all_data <- rbind(data_negative, data3, data2)
-all_data$Condition <- factor(rep(c("Singlet", "scCLINIC", "DF+scCLINIC"), each = length(names(negative_res))),levels = c("DF+scCLINIC", "scCLINIC","Singlet"))
+all_data <- rbind(data_negative, data_negative_PT, data3, data2)
+all_data$Condition <- factor(rep(c("Others-Singlet", "PT-Singlet","scCLINIC", "DF+scCLINIC"), each = length(names(negative_res))),levels = c("PT-Singlet","Others-Singlet","scCLINIC","DF+scCLINIC"))
 # all_data <- rbind(all_data,reshaped_df)
 # Create the violin plot with scatter plot
-partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 7.5)
+partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 1.5)
 
 p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition)) +
   geom_violin(color = alpha("black",0.25)) +
@@ -506,8 +519,8 @@ p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition)) +
   stat_summary(fun = mean, geom = "line", aes(group = 1), linetype = "dashed", color = alpha("black",0.5), size = 0.5, position = position_dodge(width = 0.75)) + # Add average line
   
   theme_minimal(base_size = 14) +
-  scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
-  scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
+  scale_fill_manual(values = c("#d55046", "#be883d","#9671c3","#69a75f")) + # Specify fill colors
+  scale_color_manual(values = c("black", "black", "black","black")) + # Specify scatter plot point colors
   labs(title = "",
        x = "",
        y = "Proximal Tubule Marker Average Expression Level")+
@@ -516,7 +529,7 @@ p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition)) +
 
 
 
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_A.png"), p1, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_A.png"), p1, height = 5, width = 6, dpi = 300)
 
 # Perform pairwise t-tests
 pairwise_result <- pairwise.t.test(all_data$Value, all_data$Condition)
@@ -524,73 +537,72 @@ pairwise_result <- pairwise.t.test(all_data$Value, all_data$Condition)
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_Expression.csv"),sep = ",")
 
 
-partial_contamination_data <- subset(all_data, Condition == "Partial Contamination" & Value > 5)
-p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, group = Gene)) +
-  geom_line(alpha = 0.2)+
-  geom_point(size = 2, alpha = 0.4)+
-  geom_text_repel(data = partial_contamination_data, aes(label = Gene),
-                  hjust = 0.5, vjust = 0.5, segment.color = "transparent")+
-  labs(title = "", x = "", y = "Average Expression Level") +
-  scale_color_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
-  theme_minimal(base_size = 14)+
-  theme(legend.position = "none")
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_geomline.png"), p1, height = 5, width = 5, dpi = 300)
+# partial_contamination_data <- subset(all_data, Condition == "Partial Contamination" & Value > 5)
+# p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, group = Gene)) +
+#   geom_line(alpha = 0.2)+
+#   geom_point(size = 2, alpha = 0.4)+
+#   geom_text_repel(data = partial_contamination_data, aes(label = Gene),
+#                   hjust = 0.5, vjust = 0.5, segment.color = "transparent")+
+#   labs(title = "", x = "", y = "Average Expression Level") +
+#   scale_color_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
+#   theme_minimal(base_size = 14)+
+#   theme(legend.position = "none")
+# ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_geomline.png"), p1, height = 5, width = 5, dpi = 300)
+
+ncountobjplot$grouping <- factor(ncountobjplot$grouping, levels = c("PT-Singlet", "Others-Singlet", "scCLINIC", "DF+scCLINIC"))
 
 #Proved is not Doublet
-p <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
+p <- VlnPlot(ncountobjplot,features = "nCount_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "black", position = position_dodge(width = 0.75)) +
   theme_minimal(base_size = 14) +
-  scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
-  scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
+  scale_fill_manual(values = c("#d55046", "#be883d","#9671c3","#69a75f")) + # Specify fill colors
+  scale_color_manual(values = c("black", "black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
        x = "",
        y = "nCount_RNA") +
   theme(legend.position = "none")
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount.png"), p, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount.png"), p, height = 5, width = 6, dpi = 300)
 
-pairwise_result <- pairwise.t.test(noncontam1$nCount_RNA, noncontam1$grouping)
+pairwise_result <- pairwise.t.test(ncountobjplot$nCount_RNA, ncountobjplot$grouping)
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nCount.csv"),sep = ",")
 
-p <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
+p <- VlnPlot(ncountobjplot,features = "nFeature_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "black", position = position_dodge(width = 0.75)) +
   theme_minimal(base_size = 14) +
-  scale_fill_manual(values = c("#69a75f", "#9671c3", "#be883d")) + # Specify fill colors
-  scale_color_manual(values = c("black", "black", "black")) + # Specify scatter plot point colors
+  scale_fill_manual(values = c("#d55046", "#be883d","#9671c3","#69a75f")) + # Specify fill colors
+  scale_color_manual(values = c("black", "black", "black", "black")) + # Specify scatter plot point colors
   labs(title = "",
        x = "",
        y = "nFeature_RNA") +
   theme(legend.position = "none") # Remove legend
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nFeature.png"), p, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nFeature.png"), p, height = 5, width = 6, dpi = 300)
 
-pairwise_result <- pairwise.t.test(noncontam1$nFeature_RNA, noncontam1$grouping)
+pairwise_result <- pairwise.t.test(ncountobjplot$nFeature_RNA, ncountobjplot$grouping)
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_nFeature.csv"),sep = ",")
 
 #Partial contamination by multiple cell type in Endo (M5)
 DEAlgoContam1 <- c("M5S5","M5S4")#Pure DBSCAN G7L2 G6L2 G3L2 with other G2L3 (V) G4L2 (X)
+singletsID <- c("M5S1","M5S2","M5S3")
 Contam1Cell <- subset(dealgoseuobj,subset = DEAlgo_ClusterID %in% DEAlgoContam1)
-noncontam1 <- subset(dealgoseuobj,subset = L0 %in% c("M5"))
-
-negative <- noncontam1[,as.numeric(levels(noncontam1$DEAlgocluster_Contam))[noncontam1$DEAlgocluster_Contam] >= 4] 
-positive <- noncontam1[,as.numeric(levels(noncontam1$DEAlgocluster_Contam))[noncontam1$DEAlgocluster_Contam] < 4]
+negative <- subset(dealgoseuobj,subset = DEAlgo_ClusterID %in% singletsID)
 
 Contam1CellDF <- subset(Contam1Cell,subset = DFafqc == "Doublet")
 Contam1CellNDF <- subset(Contam1Cell,subset = DFafqc == "Singlet")
 
-noncontam1$grouping <- "NA"
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(negative), "Singlet",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellDF), "DF+scCLINIC",noncontam1$grouping)
-noncontam1$grouping <- ifelse(colnames(noncontam1) %in% colnames(Contam1CellNDF), "scCLINIC",noncontam1$grouping)
+dealgoseuobj$grouping <- NA
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(negative), "Singlet",dealgoseuobj$grouping)
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(Contam1CellDF), "DF+scCLINIC",dealgoseuobj$grouping)
+dealgoseuobj$grouping <- ifelse(colnames(dealgoseuobj) %in% colnames(Contam1CellNDF), "scCLINIC",dealgoseuobj$grouping)
+ncountobjplot <- dealgoseuobj[,! is.na(dealgoseuobj$grouping)]
 
-negativeexp <- AverageExpression(negative,group.by = "all",slot = "data")
-Contam1CellDFexp <- AverageExpression(Contam1CellDF,group.by = "all",slot = "data")
-Contam1CellNDFexp <- AverageExpression(Contam1CellNDF,group.by = "all",slot = "data")
+negativeexp <- AverageExpression(negative,group.by = "all",slot = "counts")
+Contam1CellDFexp <- AverageExpression(Contam1CellDF,group.by = "all",slot = "counts")
+Contam1CellNDFexp <- AverageExpression(Contam1CellNDF,group.by = "all",slot = "counts")
 
-Contam1Cellexp <- AverageExpression(Contam1Cell,group.by = "all",slot = "data")
-positiveexp <- AverageExpression(positive,group.by = "all",slot = "data")
 contamgeneinfo <- read.csv("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/overlaplst_filtered_annotation_index_ContaminationInfo.csv",na.strings = c("", "NA"))
 
 genelist1 <- list()
@@ -637,29 +649,29 @@ data3 <- data.frame(Gene = names(Contam1CellNDFexp_res), Value = Contam1CellNDFe
 
 # Combine all data frames
 all_data <- rbind(data_negative, data2, data3)
-all_data$Condition <- factor(rep(c("Singlet", "DF+scCLINIC","scCLINIC"), each = length(names(negative_res))),levels = c("DF+scCLINIC","scCLINIC","Singlet"))
-partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 6)
+all_data$Log2Value <- log2(all_data$Value + 1) # + 1 to avoid 0 , log(0) = -infinity
+all_data$Condition <- factor(rep(c("Singlet", "DF+scCLINIC","scCLINIC"), each = length(names(negative_res))),levels = c("Singlet","scCLINIC","DF+scCLINIC"))
+partial_contamination_data <- subset(all_data, Condition == "scCLINIC" & Value > 1)
 #all_data <- rbind(all_data,reshaped_df)
 # Create the violin plot with scatter plot
-p1 <-ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, color = as.factor(Ref), group = Condition)) +
+p1 <-ggplot(all_data, aes(x = Condition, y = Log2Value, fill = Condition, color = as.factor(Ref), group = Condition)) +
   geom_violin(color = alpha("black", 0.25)) +
+  geom_point(size = 1, alpha = 1, position = position_jitter(width = 0.2)) +
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white", outlier.shape = NA) +
   geom_text_repel(data = partial_contamination_data, aes(label = Gene), segment.color = "transparent", size = 4,position = position_jitter(width = 0.2))+
-  geom_point(size = 1, alpha = 0.4, position = position_jitter(width = 0.2)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "line", aes(group = 1), linetype = "dashed", color = alpha("black",0.5), size = 0.5, position = position_dodge(width = 0.75)) + # Add average line
-  
-  scale_color_manual(values = c("#9671c3","#648ace", "#c4944a", "#58a865")) +  # Custom colors based on Ref, "#648ace", "#cc5143", "#58a865","#9671c3" colored "CollDuctIC","CollDuctPC","DistProxTubule","LoopofHenle" respectively
   scale_fill_manual(values = c("white","white", "white")) + # Specify fill colors
+  scale_color_manual(values = c("#9671c3","#648ace", "#c4944a", "#58a865")) +  # Custom colors based on Ref, "#648ace", "#cc5143", "#58a865","#9671c3" colored "CollDuctIC","CollDuctPC","DistProxTubule","LoopofHenle" respectively
   theme_minimal(base_size = 14) +
-  labs(title = "", x = "", y = "CD-IC CD-PC DCT LOH Marker\nAverage Expression Level") +
+  labs(title = "", x = "", y = "CD-IC CD-PC DCT LOH Marker\nlog2(Average Expression Level)") +
   theme(legend.position = "none") # Remove legend
 
 
-pairwise_result <- pairwise.t.test(all_data$Value, all_data$Condition)
+pairwise_result <- pairwise.t.test(all_data$Log2Value, all_data$Condition)
 
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_Expression.csv"),sep = ",")
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_B.png"), p1, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_B2.png"), p1, height = 5, width = 5, dpi = 300)
 
 partial_contamination_data <- subset(all_data, Condition == "Partial Contamination" & Value > 5)
 p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, color = as.factor(Ref), group = Gene)) +
@@ -674,8 +686,9 @@ p1 <- ggplot(all_data, aes(x = Condition, y = Value, fill = Condition, color = a
 
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_marker_multipleDFDEAlgogeomline.png"), p1, height = 5, width = 5, dpi = 300)
 
-noncontam1 <- subset(noncontam1,subset = grouping %in% c("DF+scCLINIC","scCLINIC","Singlet"))
-p1 <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
+ncountobjplot$grouping <- factor(ncountobjplot$grouping, levels = c("Singlet","scCLINIC","DF+scCLINIC"))
+
+p1 <- VlnPlot(ncountobjplot,features = "nCount_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
@@ -688,10 +701,10 @@ p1 <- VlnPlot(noncontam1,features = "nCount_RNA",group.by = "grouping")+
   theme(legend.position = "none") # Remove legend
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nCount_RNAMultiple.png"), p1, height = 5, width = 5, dpi = 300)
 
-pairwise_result <- pairwise.t.test(noncontam1$nCount_RNA, noncontam1$grouping)
+pairwise_result <- pairwise.t.test(ncountobjplot$nCount_RNA, ncountobjplot$grouping)
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_nCount.csv"),sep = ",")
 
-p1 <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
+p1 <- VlnPlot(ncountobjplot,features = "nFeature_RNA",group.by = "grouping")+
   geom_boxplot(width = 0.05, position = position_dodge(width = 0.1), alpha = 1, fill = "white",outlier.shape = NA) + # Add white boxplot within each violin
   #stat_summary(fun = median, geom = "point", shape = 18, size = 3, color = "red", fill = "yellow", position = position_dodge(width = 0.75)) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 2, color = "black", position = position_dodge(width = 0.75)) +
@@ -704,10 +717,12 @@ p1 <- VlnPlot(noncontam1,features = "nFeature_RNA",group.by = "grouping")+
   theme(legend.position = "none") # Remove legend
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3B_DFNDEAlgoP_nFeature_RNAMultiple.png"), p1, height = 5, width = 5, dpi = 300)
 
-pairwise_result <- pairwise.t.test(noncontam1$nFeature_RNA, noncontam1$grouping)
+pairwise_result <- pairwise.t.test(ncountobjplot$nFeature_RNA, ncountobjplot$grouping)
 write.table(pairwise_result$p.value,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/","Fig3C_nFeature.csv"),sep = ",")
 
-
+##Log2FC
+data2$Log2FC <- log2(data2$Value/data_negative$Value)
+data3$Log2FC <- data3$Value/data_negative$Value
 
 #Triplet Contam
 color4marker <- c( "#1e88e5",  "#1e88e5","#9146ec","#ed9307",  "#1e88e5", "#008000","#9146ec")
@@ -930,3 +945,85 @@ for (i in seq_along(colnames(heatmap_matrix))) {
 g1 <- grid.arrange(grobs = plot_list, ncol = length(plot_list),right = "")
 ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScore_MultiStackFig3",".png"),g1,  height = 5, width = 8, dpi = 300)
 
+##S3_PT
+#read doublet
+res <- "annotation_index"
+dealgoseuobj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/Output_annotation_index/DEAlgoResult.rds")
+doublet_afqc <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig3/seu_kidney_codeocean_updated_withDFScore.rds")
+
+dealgoseuobj@meta.data$DFafqc_pANN <- doublet_afqc@meta.data[, grep("pANN",  colnames(doublet_afqc@meta.data), value = TRUE)]
+
+dealgoseuobj@meta.data$DFafqc <- doublet_afqc@meta.data[, grep("DF.",  colnames(doublet_afqc@meta.data), value = TRUE)]
+
+dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
+
+dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
+dealgoseuobj$dealgocontamclus <- ifelse(dealgoseuobj$DEAlgo_Contaminated == "Artifact", dealgoseuobj$DEAlgo_ClusterID, NA)
+
+MajorCluster <- c("M1","M2","M4","M5","M6","M8")
+
+subcluster <- subset(dealgoseuobj,subset = L0 %in% MajorCluster)
+
+DEAlgoContam1 <- c("M1S4","M2S6","M4S0","M5S0","M6S5","M8S2")#Stroma (M8), Endo (M5), Dist.Prox.Tubule (M4), Coll.Duct.IC (M1), Loop of Henle (M6)
+
+subcluster$GRP<- NA
+subcluster$GRP <- ifelse(subcluster$DFafqc == "Singlet" & !(subcluster$DEAlgo_ClusterID %in% DEAlgoContam1), "scCLINIC -\nDF -", subcluster$GRP)
+subcluster$GRP <- ifelse(subcluster$DFafqc == "Doublet" & !(subcluster$DEAlgo_ClusterID %in% DEAlgoContam1), "-\n+", subcluster$GRP)
+subcluster$GRP <- ifelse(subcluster$DFafqc == "Doublet" & (subcluster$DEAlgo_ClusterID %in% DEAlgoContam1), "+\n+", subcluster$GRP)
+subcluster$GRP <- ifelse(subcluster$DFafqc == "Singlet" & (subcluster$DEAlgo_ClusterID %in% DEAlgoContam1), "+\n-", subcluster$GRP)
+
+AvgExp_subcluster <- AverageExpression(subcluster, group.by = "GRP", slot = "counts")
+AvgExp_df <- as.data.frame(AvgExp_subcluster$RNA)  # Assuming "RNA" is the default assay
+AvgExp_long <- data.frame(
+  Group = names(AvgExp_df[c("Slc34a1"),]),
+  Expression = as.numeric(AvgExp_df[c("Slc34a1"),])
+)
+AvgExp_long$Group <- factor(AvgExp_long$Group, levels = c("scCLINIC -\nDF -", "-\n+", "+\n-","+\n+"))
+p1 <- ggplot(AvgExp_long, aes(x = Group, y = Expression)) +
+  geom_bar(stat = "identity", fill = "#d55046") +  # Set a single color for all bars
+  theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12, face = "bold"),  # Y-axis title
+    axis.text.x = element_text(hjust = 1),
+    axis.text.y = element_text(size = 12),
+    legend.position = "none",  # Hide the legend,
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+  ) +
+  labs(
+    y = "Average Expression",
+    title = "Slc34a1"
+  )
+
+AvgExp_long <- data.frame(
+  Group = names(AvgExp_df[c("Miox"),]),
+  Expression = as.numeric(AvgExp_df[c("Miox"),])
+)
+AvgExp_long$Group <- factor(AvgExp_long$Group, levels = c("scCLINIC -\nDF -", "-\n+", "+\n-","+\n+"))
+p2 <- ggplot(AvgExp_long, aes(x = Group, y = Expression)) +
+  geom_bar(stat = "identity", fill = "#d55046") +  # Set a single color for all bars
+  theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12, face = "bold"),  # Y-axis title
+    axis.text.x = element_text(hjust = 1),
+    axis.text.y = element_text(size = 12),
+    legend.position = "none",  # Hide the legend,
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+  ) +
+  labs(
+    y = "Average Expression",
+    title = "Miox"
+  )
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","S3_BarChart_PT",".png"),p2+p1,  height = 5, width = 5, dpi = 300)
+
+
+
+subcluster$GRP <- factor(subcluster$GRP, levels = c("scCLINIC -\nDF -","+\n+", "+\n-", "-\n+"))
+DotPlot(subcluster,features = c("Miox","Slc34a1"),group.by = "GRP") + coord_flip()+
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_text(hjust = 1)
+  )
+
+#S3_Endo

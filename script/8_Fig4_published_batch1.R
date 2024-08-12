@@ -16,7 +16,7 @@ GOgmt <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/GOgmt.rds")
 Hgmt <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Hgmt.rds")
 
 singletlevel = 6
-dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Output_Overlap_Ratio_0.5/DEAlgoResult.rds"))
+dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Output_Overlap_Ratio_0.5/scCLINICResult.rds"))
 doublet_afqc <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/adinatobjQC.rds"))
 
 metatable_unique<- read.table("~/DEAlgoManuscript/Manuscript_Figures/Fig4/ClinicalMetaData.csv",sep = ",")
@@ -43,8 +43,9 @@ qcsclst <- sort(unique(dealgoseuobj@meta.data[,"Overlap_Ratio_0.5"]))
 
 OriginalALL <- dealgoseuobj
 
-dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < singletlevel, "Artifact", "Singlet")
-DEAlgoSinglet <- subset(dealgoseuobj,subset = DEAlgo_Contaminated == "Singlet")
+dealgoseuobj$scCLINIC_artifact <- ifelse(as.numeric(levels(dealgoseuobj$scCLINIC_Level))[dealgoseuobj$scCLINIC_Level] < singletlevel, "Artifact", "Singlet")
+
+DEAlgoSinglet <- subset(dealgoseuobj,subset = scCLINIC_artifact == "Singlet")
 
 
 DFSinglet <- subset(dealgoseuobj,subset = DFafqc == "Singlet")

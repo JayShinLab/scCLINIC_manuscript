@@ -1,4 +1,4 @@
-cell_type = commandArgs(trailingOnly=TRUE) #"M6" B Cells
+cell_type = commandArgs(trailingOnly=TRUE) #"M6" B Cells "M3"
 # test if there is at least one argument: if not, return an error
 if (length(cell_type)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
@@ -17,7 +17,7 @@ Hgmt <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Hgmt.rds")
 singletlevel = 7
 
 
-dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Output_Overlap_Ratio_0.5/","DEAlgoResult.rds"))
+dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Output_Overlap_Ratio_0.5/","scCLINICResult.rds"))
 doublet_afqc <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/covid19naturemedQC.rds"))
 
 metatable_unique<- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/covid19naturemed.rds"))
@@ -38,8 +38,8 @@ qcsclst <- sort(unique(dealgoseuobj@meta.data[,"Overlap_Ratio_0.5"]))
 #Healthy vs Control
 OriginalALL <- dealgoseuobj
 
-dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < singletlevel, "Artifact", "Singlet")
-DEAlgoSinglet <- subset(dealgoseuobj,subset = DEAlgo_Contaminated == "Singlet")
+dealgoseuobj$scCLINIC_artifact <- ifelse(as.numeric(levels(dealgoseuobj$scCLINIC_Level))[dealgoseuobj$scCLINIC_Level] < singletlevel, "Artifact", "Singlet")
+DEAlgoSinglet <- subset(dealgoseuobj,subset = scCLINIC_artifact == "Singlet")
 
 DFSinglet <- subset(dealgoseuobj,subset = DFafqc == "Singlet")
 

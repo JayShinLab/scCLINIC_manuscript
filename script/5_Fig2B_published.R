@@ -828,19 +828,22 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
       
       x_limits <- c(0, ceiling(max(multicolplot[, -ncol(multicolplot)], na.rm = TRUE) * 100) / 100)
       custom_breaks <- seq( x_limits[1], x_limits[2], length.out = 3)
-      text_size = 5
+      text_size = 10
       
       plot_list <- list()
+      
       for (i in seq(colnames_sorted)) {
         clus <- colnames_sorted[i]
         p <- ggplot(multicolplot, aes_string(x = "Category", y = clus)) +
           geom_bar(stat = "identity", fill = c("#d55046","#8d8d0f","#b488bb","#FDE725")[i]) + # viridis(length(colnames_sorted))[i]) +
           labs(title = paste(clus), y ="", x ="") +  # Set y-axis label for the first plot only
           theme_minimal()+
-          theme(panel.grid = element_blank(),axis.line = element_line(color = "black"),
-                axis.text = element_text(size = text_size),
-                axis.title = element_text(size = text_size),
-                plot.title = element_text(size = text_size)) +
+          theme(panel.grid = element_line(color = "grey", size = 0.5),axis.line = element_line(color = "black"),
+                #panel.grid.major.x = element_blank(), 
+                axis.text = element_text(size = text_size, family = "Arial"),
+                axis.title = element_text(size = text_size, family = "Arial"),
+                plot.title = element_text(size = text_size, family = "Arial"),
+                axis.text.x = element_blank()) +
           coord_flip()+
           #ylim(x_limits)+
           scale_y_continuous(breaks = custom_breaks, limits = x_limits)+
@@ -851,7 +854,7 @@ PlotContaminationPattern <- function(obj,Outdir,Name,OverlapRatio=0.5,CELLANNOTA
         plot_list[[i]] <- p
       }
       
-      widths <- c(6.2, rep(5, length(plot_list) - 1))
+      widths <- c(6.5, rep(5, length(plot_list) - 1))
       
       g1 <- grid.arrange(grobs = plot_list, ncol = length(plot_list),right = "",widths = widths)
       ggsave(filename = paste0(folder_path_Step2_Output,"ContaminationScore",clusterx,".png"),g1,  height = 2.5, width = 8, dpi = 300)
@@ -921,7 +924,7 @@ pbmcLog <- FindClusters(pbmcLog)
 annotations <- pbmcLog@meta.data$seurat_clusters
 DimPlot(pbmcLog, reduction = 'umap', group.by = "seurat_clusters")
 homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu_kidney@meta.data$ClusteringResults
-nExp_poi <- round(0.1788*nrow(pbmcLog@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi <- round(0.06*nrow(pbmcLog@meta.data))  ##NOT 0.1788 Assuming 6% doublet formation rate - for 8193 cells recovered
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 # nExp_poi.adj
 # [1] 1329
@@ -1050,11 +1053,12 @@ for (i in c("M0","M1","M2","M4")){
   recluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
   recluster$DEAlgo_Contaminated <- dealgoseuobj$DEAlgo_Contaminated
   recluster$dealgocontamclus <- dealgoseuobj$dealgocontamclus 
+  recluster$Status <- dealgoseuobj$Status
   
   p7 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE,  sizes.highlight = 0.1)
   p8 <- FeaturePlot(recluster, reduction = "umap",features = "DiffDP1_sum")
   p4 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE,  sizes.highlight = 0.1)
-  p5 <- DimPlot(recluster, reduction = "umap",group.by = "DEAlgo_Contaminated",raster=FALSE,  sizes.highlight = 0.1)
+  p5 <- DimPlot(recluster, reduction = "umap",group.by = "Status",raster=FALSE,  sizes.highlight = 0.1)
   
   p3 <- DimPlot(recluster, group.by = "dealgocontamclus")
   
@@ -1420,4 +1424,28 @@ p9 <- DimPlot(originalseu, reduction = "umap",group.by = "HomoHetero",raster=FAL
 
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Overlap_Ratio_0.25","_Fig2BFullUmap.png"), p9+p2+p8, height = 8, width = 24, dpi = 300)
 
+originalseu$PDF <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DFbfqc =="Doublet", 1,0)
 
+originalseu$PCL <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DEAlgo_Contaminated =="Artifact", 1,0)
+
+table(originalseu$PCL)
+table(originalseu$PDF)
+table(originalseu$DEAlgo_Contaminated)
+table(originalseu$DFbfqc)
+
+# > table(originalseu$PDF) DF + CITE-seq +
+# 
+# 0    1 
+# 7918  275 
+# > table(originalseu$PCL) scCLINIC + CITE-seq +
+# 
+# 0    1 
+# 7919  274 
+# > table(originalseu$DEAlgo_Contaminated)
+# 
+# Artifact Low Quality Cell          Singlet 
+# 296              576             7321 
+# > table(originalseu$DFbfqc)
+# 
+# Doublet Singlet 
+# 446    7747 

@@ -107,7 +107,7 @@ p1 <- ggplot(df, aes(x = Method, y = library, fill = Method)) +
   scale_color_manual(values = c("black", "black")) + # Specify scatter plot point colors
   labs(title = "",
        x = "",
-       y = "Average Expression Level") +
+       y = "nCount RNA") +
   theme(legend.position = "none") # Remove legend
 
 simu_sce_seu <- CreateSeuratObject(counts = example_simu$new_count,meta.data = example_simu$new_covariate)
@@ -1186,6 +1186,9 @@ std_values <- apply(value_columns, 1, sd, na.rm = TRUE)
 final_result_lst2$average <- average_values
 final_result_lst2$std <- std_values
 
+write.table(final_result_lst,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/","AUROC_Fig2A.csv"), sep = ",")
+write.table(final_result_lst2,file = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/","AUPRC_Fig2A.csv"), sep = ",")
+
 p1 <- ggplot(final_result_lst, aes(x = dataset, y = average, color = method)) +
   #geom_boxplot() +
   geom_line() +
@@ -1592,3 +1595,16 @@ p11 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgocluster_Contam
 p13 <- DimPlot(dealgoseuobj, reduction = "umap",group.by = "DEAlgo_ClusterID",raster=FALSE, label = F, sizes.highlight = 0.1)
 
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/",res,"_Fig2A_scCLINIC_1_1.png"), p2+p3+p6+p8+p11+p13, height = 10, width = 17, dpi = 300)
+
+
+#Fig S2 GroundTruth
+for (mcluster in c("M1","M2","M3","M4","M5")){
+dealgoseuobj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/Syn_5_Cell_Type_1/Syn_5_Cell_Type_scCLINIC_1_1_Step2/Output_annotation_index/DEAlgoResult.rds")
+M5_subcluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/Syn_5_Cell_Type_1/Syn_5_Cell_Type_scCLINIC_1_1_Step2/annotation_index_recluster/annotation_index_cluster_",mcluster,".rds"))
+M5_subcluster$DEAlgocluster_Contam <- dealgoseuobj$DEAlgocluster_Contam
+M5_subcluster$DiffDP1_sum <- dealgoseuobj$DiffDP1_sum
+p1 <- DimPlot(M5_subcluster,group.by = "CellType", reduction = "umap",raster=FALSE)
+p2 <- FeaturePlot(M5_subcluster,features = "DiffDP1_sum", reduction = "umap",raster=FALSE, label = F) #& scale_color_gradient(limits = c(0, 1))
+p3 <- DimPlot(M5_subcluster, reduction = "umap",group.by = "DEAlgocluster_Contam",raster=FALSE, label = F, sizes.highlight = 0.1)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2A/FigS2_scCLINIC_1_1_",mcluster,".png"), p1+p2+p3, height = 5, width = 17, dpi = 300)
+}

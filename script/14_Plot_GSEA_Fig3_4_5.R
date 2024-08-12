@@ -10,7 +10,7 @@ library(Seurat)
 library(readr)
 library(forcats)
 #read doublet
-dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Output_Overlap_Ratio_0.5/","DEAlgoResult.rds"))
+dealgoseuobj <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Output_Overlap_Ratio_0.5/","scCLINICResult.rds"))
 doublet_afqc <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/covid19naturemedQC.rds"))
 
 metatable_unique<- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/covid19naturemed.rds"))
@@ -28,7 +28,7 @@ dealgoseuobj$DFafqc <- ifelse(doublet_afqc$DFScore < cutoff, "Singlet", "Doublet
 qcsclst <- sort(unique(dealgoseuobj@meta.data[,"Overlap_Ratio_0.5"]))
 
 dbused <- "GOgmt"
-cell_type <- "M20"
+cell_type <- "M10" #Neutrophil
 overlap <- c("GOBP_REGULATION_OF_RESPONSE_TO_STRESS","GOBP_REGULATION_OF_INTRACELLULAR_SIGNAL_TRANSDUCTION","GOBP_REGULATION_OF_IMMUNE_SYSTEM_PROCESS","GOBP_REGULATION_OF_IMMUNE_RESPONSE","GOBP_POSITIVE_REGULATION_OF_SIGNALING","GOBP_POSITIVE_REGULATION_OF_MULTICELLULAR_ORGANISMAL_PROCESS","GOBP_POSITIVE_REGULATION_OF_IMMUNE_SYSTEM_PROCESS")
 
 Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Result_",dbused,"_",cell_type,".rds"))
@@ -119,29 +119,29 @@ substitute_underscores <- function(string) {
 # Apply the function to Gene_short
 data$Gene_short <- substitute_underscores(data$Gene_short)
 
-p1 <- ggplot(data = data, aes(x = -log(padj), y = Gene_short, fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0("Neutrophil"))
 
 p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
   ggtitle(paste0("Neutrophil"))
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBMC_Neutrophil_",dbused,"_",cell_type,"_1.png"), p1, height = 4, width = 7, dpi = 300)
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBMC_Neutrophil_",dbused,"_",cell_type,"_2.png"), p2, height = 4, width = 7, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBMC_Neutrophil_",dbused,"_",cell_type,"_2.png"), p2, height = 4, width = 5, dpi = 300)
 
 
-clusterx <- "M20"
+clusterx <- "M10"
 Positive_regulation_of_immune_system_process_plot <- c("IL7R","CCL5","MS4A1","HLA-DPB1","IGHM","IGLC3","RPS19")
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 cluster2$status <- dealgoseuobj$Status
 
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot) & scale_color_gradientn(colors = c("grey","red"),limit = c(0,8))
@@ -156,10 +156,26 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_4.png"), p4, height = 10, width = 10, dpi = 300)
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_5.png"), p5, height = 10, width = 10, dpi = 300)
 
+clusterx <- "M10"
+Positive_regulation_of_immune_system_process_plot <- c("HBB", "HBA1","HBA2")
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2$status <- dealgoseuobj$Status
+
+p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot) & scale_color_gradientn(colors = c("grey","red"),limit = c(0,8), oob = scales::squish)
+p2 <- VlnPlot(cluster2,features =Positive_regulation_of_immune_system_process_plot,group.by = "seurat_clusters")
+p5 <- VlnPlot(cluster2,features =Positive_regulation_of_immune_system_process_plot,group.by = "seurat_clusters", split.by = "status")+ theme(legend.position = "right") 
+p3 <- FeaturePlot(dealgoseuobj, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limit = c(0,8), oob = scales::squish)
+p4 <- VlnPlot(dealgoseuobj,features =Positive_regulation_of_immune_system_process_plot,group.by = "Overlap_Ratio_0.5")
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_1.png"), p1, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_2.png"), p2, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_3.png"), p3, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_4.png"), p4, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_5.png"), p5, height = 10, width = 10, dpi = 300)
 
 ###B Cells
 dbused <- "GOgmt"
-cell_type <- "M6"
+cell_type <- "M3"
 overlap <- c("GOBP_ANTIGEN_RECEPTOR_MEDIATED_SIGNALING_PATHWAY","GOBP_B_CELL_ACTIVATION","GOBP_B_CELL_RECEPTOR_SIGNALING_PATHWAY","GOBP_B_CELL_PROLIFERATION")
 
 Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Healthy_Result_",dbused,"_",cell_type,".rds"))
@@ -236,18 +252,18 @@ substitute_underscores <- function(string) {
 # Apply the function to Gene_short
 data$Gene_short <- substitute_underscores(data$Gene_short)
 
-p1 <- ggplot(data = data, aes(x = -log(padj), y = Gene_short, fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0("B Cells"))
 
 p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
@@ -281,9 +297,9 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","HealthyP
 #   ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",sigpath,"_",clusterx,"_5.png"), p5, height = 10, width = 10, dpi = 300)
 # }
 
-clusterx <- "M6"
+clusterx <- "M3"
 Positive_regulation_of_immune_system_process_plot <- c("CD247","CD8A","TRAC","CD3D","MS4A1","CD79A","CD22")
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 cluster2$status <- dealgoseuobj$Status
 
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 5))
@@ -355,8 +371,7 @@ p1 <- ggplot(data = data, aes(x = Group, y = Gene_short, color = NES, size = pst
 
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Monocyte_GSEA_Result_",dbused,"_",cell_type,"GOBPTOP.png"), p1, height = 10, width = 10, dpi = 300)
 
-
-cell_type <- "M16"
+cell_type <- "M8"
 dbused <- "GOgmt"
 Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Result_",dbused,"_",cell_type,".rds"))
 
@@ -424,18 +439,18 @@ substitute_underscores <- function(string) {
 # Apply the function to Gene_short
 data$Gene_short <- substitute_underscores(data$Gene_short)
 
-p1 <- ggplot(data = data, aes(x = -log(padj), y = Gene_short, fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0("Platelet Cells"))
 
 p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
@@ -467,9 +482,9 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBM
 #   ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","CFig4B_",sigpath,"_",clusterx,"_5.png"), p5, height = 10, width = 10, dpi = 300)
 # }
 
-clusterx <- "M16"
+clusterx <- "M8"
 Positive_regulation_of_immune_system_process_plot <- c("FCN1","CD14","AIF1","CYBB","MS4A1","TRAC","CD8A","CD247")
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVIDNatMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 cluster2$status <- dealgoseuobj$Status
 
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 5))
@@ -483,6 +498,163 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_3.png"), p3, height = 15, width = 15, dpi = 300)
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_4.png"), p4, height = 10, width = 10, dpi = 300)
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_5.png"), p5, height = 10, width = 10, dpi = 300)
+
+
+for (clusterx in qcsclst){
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/PBMCCOVID_NatureMed_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2$status <- dealgoseuobj$Status
+
+p1 <- DimPlot(cluster2,group.by = "status")
+p4 <- DimPlot(dealgoseuobj,group.by = "Status")
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_","Status","_",clusterx,"_1.png"), p1, height = 5, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_","Status","_",clusterx,"_4.png"), p4, height = 5, width = 5, dpi = 300)
+
+}
+
+###Platelet-monocyte aggregation
+cell_type <- "M2"
+dbused <- "GOgmt"
+Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Result_",dbused,"_",cell_type,".rds"))
+
+data <- data.frame(
+  Group = c(rep("Ori", length(Hlst$OriResult.padj)),rep("DEAlgo", length(Hlst$DEAlgoResult.padj)),rep("DF", length(Hlst$DFResult.padj))),
+  padj = c(Hlst$OriResult.padj,Hlst$DEAlgoResult.padj,Hlst$DFResult.padj),
+  #Value = c(OriH$NES,DEAlgoH$NES,DFH$NES),
+  Gene = c(Hlst$OriResult.pathway,Hlst$DEAlgoResult.pathway,Hlst$DFResult.pathway),
+  NES = c(Hlst$OriResult.NES,Hlst$DEAlgoResult.NES,Hlst$DFResult.NES)
+  
+  #Lead = c(list(Hlst$OriResult.leadingEdge),list(Hlst$DEAlgoResult.leadingEdge),list(Hlst$DFResult.leadingEdge))
+  #NGene = c(length(Hlst$OriResult.leadingEdge),length(Hlst$DEAlgoResult.leadingEdge),length(Hlst$DFResult.leadingEdge))
+)
+data <- data[grepl("GOBP", data$Gene, ignore.case = TRUE), ]
+
+DF_p <- data[data$Group == "DF" & data$NES > 0 & data$padj < 0.05, ]
+DF_p <- DF_p[head(order(DF_p$padj), n=50), "Gene"]
+
+DEAlgo_p <- data[data$Group == "DEAlgo" & data$NES > 0 & data$padj < 0.05, ]
+DEAlgo_p <- DEAlgo_p[head(order(DEAlgo_p$padj), n=50), "Gene"]
+
+Ori_p <- data[data$Group == "Ori" & data$NES > 0 & data$padj < 0.05, ]
+Ori_p <- Ori_p[head(order(Ori_p$padj), n=50), "Gene"]
+
+pathwaydisplay2 <- unique(c(Ori_p,DF_p,DEAlgo_p))
+
+data <- data[data$Gene %in% unique(pathwaydisplay2),]
+
+# plot: dot plot
+data$pstat <- 1  # Initialize the new column
+
+# Assign values based on conditions
+data$pstat[data$padj <= 0.05] <- 2
+data$pstat[data$padj <= 0.01] <- 3
+data$pstat[data$padj <= 0.001] <- 4
+data$pstat[is.na(data$padj)] <- NA
+
+NES_break <- c(-4,-2,0,2,4)
+# Convert pstat to a factor
+data$pstat <- factor(data$pstat)
+
+# Modify the size breaks to match the levels of pstat
+padj_break <- levels(data$pstat)
+data$Gene_short <- substr(data$Gene, 1, 50)
+p1 <- ggplot(data = data, aes(x = Group, y = Gene_short, color = NES, size = pstat)) + 
+  geom_point() +
+  scale_color_viridis_c(option = "viridis", breaks = NES_break, limits = c(min(NES_break), max(NES_break))) +
+  scale_size_manual(values = c(1, 2, 3, 4), breaks = padj_break) +  # Use padj_break as breaks argument
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  ggtitle(paste0(cell_type))
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Monocyte_GSEA_Result_",dbused,"_",cell_type,"GOBPTOP.png"), p1, height = 10, width = 10, dpi = 300)
+
+cell_type <- "M10"
+dbused <- "GOgmt"
+Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Result_",dbused,"_",cell_type,".rds"))
+
+data <- data.frame(
+  Group = c(rep("Ori", length(Hlst$OriResult.padj)),rep("DEAlgo", length(Hlst$DEAlgoResult.padj)),rep("DF", length(Hlst$DFResult.padj))),
+  padj = c(Hlst$OriResult.padj,Hlst$DEAlgoResult.padj,Hlst$DFResult.padj),
+  #Value = c(OriH$NES,DEAlgoH$NES,DFH$NES),
+  Gene = c(Hlst$OriResult.pathway,Hlst$DEAlgoResult.pathway,Hlst$DFResult.pathway),
+  NES = c(Hlst$OriResult.NES,Hlst$DEAlgoResult.NES,Hlst$DFResult.NES)
+  
+  #Lead = c(list(Hlst$OriResult.leadingEdge),list(Hlst$DEAlgoResult.leadingEdge),list(Hlst$DFResult.leadingEdge))
+  #NGene = c(length(Hlst$OriResult.leadingEdge),length(Hlst$DEAlgoResult.leadingEdge),length(Hlst$DFResult.leadingEdge))
+)
+data <- data[grepl("GOBP", data$Gene, ignore.case = TRUE), ]
+
+DF_p <- data[data$Group == "DF" & data$NES > 0 & data$padj < 0.05, ]
+DF_p <- DF_p[head(order(DF_p$padj), n=50), "Gene"]
+
+DEAlgo_p <- data[data$Group == "DEAlgo" & data$NES > 0 & data$padj < 0.05, ]
+DEAlgo_p <- DEAlgo_p[head(order(DEAlgo_p$padj), n=50), "Gene"]
+
+DEAlgo50_p <- data[data$Group == "DEAlgo+" & data$NES > 0 & data$padj < 0.05, ]
+DEAlgo50_p <- DEAlgo50_p[head(order(DEAlgo50_p$padj), n=50), "Gene"]
+
+Ori_p <- data[data$Group == "Ori" & data$NES > 0 & data$padj < 0.05, ]
+Ori_p <- Ori_p[head(order(Ori_p$padj), n=50), "Gene"]
+
+pathwaydisplay3 <- unique(c(Ori_p,DF_p,DEAlgo_p,DEAlgo50_p))
+
+overlap <- intersect(pathwaydisplay2, pathwaydisplay3)
+print(overlap)
+
+
+Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVID_Result_",dbused,"_",cell_type,".rds"))
+
+data <- data.frame(
+  Group = c(rep("Ori", length(Hlst$OriResult.padj)),rep("DEAlgo", length(Hlst$DEAlgoResult.padj)),rep("DF", length(Hlst$DFResult.padj))),
+  padj = c(Hlst$OriResult.padj,Hlst$DEAlgoResult.padj,Hlst$DFResult.padj),
+  #Value = c(OriH$NES,DEAlgoH$NES,DFH$NES),
+  Gene = c(Hlst$OriResult.pathway,Hlst$DEAlgoResult.pathway,Hlst$DFResult.pathway),
+  NES = c(Hlst$OriResult.NES,Hlst$DEAlgoResult.NES,Hlst$DFResult.NES)
+  
+  #Lead = c(list(Hlst$OriResult.leadingEdge),list(Hlst$DEAlgoResult.leadingEdge),list(Hlst$DFResult.leadingEdge))
+  #NGene = c(length(Hlst$OriResult.leadingEdge),length(Hlst$DEAlgoResult.leadingEdge),length(Hlst$DFResult.leadingEdge))
+)
+
+data <- data[data$Gene %in% unique(overlap),]
+data$pstat <- 1  # Initialize the new column
+data$pstat[data$padj <= 0.05] <- 2
+data$pstat[data$padj <= 0.01] <- 3
+data$pstat[data$padj <= 0.001] <- 4
+data$pstat[is.na(data$padj)] <- NA
+
+NES_break <- c(-4,-2,0,2,4)
+# Convert pstat to a factor
+data$pstat <- factor(data$pstat)
+
+# Modify the size breaks to match the levels of pstat
+data$Gene_short <- data$Gene
+data <- data[data$Group != "DEAlgo+",]
+substitute_underscores <- function(string) {
+  gsub("(([^_]*_){3})", "\\1\n", string, perl = TRUE)
+}
+
+# Apply the function to Gene_short
+data$Gene_short <- substitute_underscores(data$Gene_short)
+
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
+  geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
+  theme_bw() + 
+  ylab("") + 
+  xlab("-log10(padj)") + 
+  ggtitle(paste0("Platelet Cells"))
+
+p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
+  theme_bw() + 
+  ylab("") + 
+  xlab("Normalized Enrichment Score (NES)") + 
+  ggtitle(paste0("Platelet Cells"))
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBMC_NeutrophilsMonocyte_",dbused,"_",cell_type,"_1.png"), p1, height = 20, width = 7, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","COVIDPBMC_NeutrophilsMonocyte_",dbused,"_",cell_type,"_2.png"), p2, height = 20, width = 5, dpi = 300)
 
 # #Healthy
 # ###Platelet-monocyte aggregation
@@ -585,18 +757,18 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",
 # # Apply the function to Gene_short
 # data$Gene_short <- substitute_underscores(data$Gene_short)
 # 
-# p1 <- ggplot(data = data, aes(x = -log(padj), y = Gene_short, fill = Group)) + 
+# p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
 #   geom_col(position = "dodge") +
-#   scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+#   scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
 #   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
 #   theme_bw() + 
 #   ylab("") + 
-#   xlab("-log(padj)") + 
+#   xlab("-log10(padj)") + 
 #   ggtitle(paste0("B Cells"))
 # 
 # p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
 #   geom_col(position = "dodge") +
-#   scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+#   scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
 #   theme_bw() + 
 #   ylab("") + 
 #   xlab("Normalized Enrichment Score (NES)") + 
@@ -607,7 +779,7 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig5/","Fig4B_",
 ####Adipose tissue dataset
 ####Fig 4B
 dbused <- "GOgmt"
-cell_type <- "M6"
+cell_type <- "M4" #NK T B Cell
 overlap <- c("GOBP_LIPID_LOCALIZATION","GOBP_FATTY_ACID_TRANSPORT","GOBP_ERK1_AND_ERK2_CASCADE","GOBP_CELLULAR_RESPONSE_TO_OXYGEN_CONTAINING_COMPOUND","GOBP_VASCULAR_PROCESS_IN_CIRCULATORY_SYSTEM","GOBP_VASCULATURE_DEVELOPMENT","GOBP_TUBE_MORPHOGENESIS","GOBP_RESPONSE_TO_ZINC_ION","GOBP_RESPONSE_TO_COPPER_ION","GOBP_INTRACELLULAR_ZINC_ION_HOMEOSTASIS")
 
 Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","DiaSATvsNonSAT_Result_",dbused,"_",cell_type,".rds"))
@@ -645,18 +817,18 @@ substitute_underscores <- function(string) {
 # Apply the function to Gene_short
 data$Gene_short <- substitute_underscores(data$Gene_short)
 data$Gene_short <- factor(data$Gene_short, levels = unique(data$Gene_short))
-p1 <- ggplot(data = data, aes(x = -log(padj), y = Gene_short, fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0(""))
 
 p2 <- ggplot(data = data, aes(x = NES, y = Gene_short, fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
@@ -674,8 +846,8 @@ for (pathplot in overlap){
   leading_edge <- leading_edge[!is.na(leading_edge)]
   lstcalc <- c(setNames(list(leading_edge), as.character(pathplot)), lstcalc)
 }
-dealgoseuobj<- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Output_Overlap_Ratio_0.5/DEAlgoResult.rds"))
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+dealgoseuobj<- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Output_Overlap_Ratio_0.5/scCLINICResult.rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 #cluster2 <- subset(cluster2, subset = status == "Healthy")
 for (sigpath in unique(names(lstcalc))){
   p1 <- FeaturePlot(cluster2, reduction = "umap",features =lstcalc[[sigpath]])
@@ -691,7 +863,7 @@ for (sigpath in unique(names(lstcalc))){
 
 clusterx <- cell_type
 Positive_regulation_of_immune_system_process_plot <- c("APOD","APOE","PLA2G2A","DCN","CD36","GNLY","NKG7","CCL5")
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 6))
 p2 <- VlnPlot(cluster2,features =Positive_regulation_of_immune_system_process_plot,group.by = "seurat_clusters")
@@ -705,7 +877,21 @@ ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Fig4B_",
 
 clusterx <- cell_type
 Positive_regulation_of_immune_system_process_plot <- c("MT2A" ,  "MT1E"   ,"MT1M"  , "MT1A"  ,"MT1F"  ,"MT1G"  ,   "MT1X" )
-cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+
+p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 6), oob = scales::squish)
+p2 <- VlnPlot(cluster2,features =Positive_regulation_of_immune_system_process_plot,group.by = "seurat_clusters")
+p3 <- FeaturePlot(dealgoseuobj, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)
+p4 <- VlnPlot(dealgoseuobj,features =Positive_regulation_of_immune_system_process_plot,group.by = "Overlap_Ratio_0.5")
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_1.png"), p1, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_2.png"), p2, height = 10, width = 10, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_3.png"), p3, height = 15, width = 15, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Fig4B_",Positive_regulation_of_immune_system_process_plot,"_",clusterx,"_4.png"), p4, height = 10, width = 10, dpi = 300)
+
+clusterx <- cell_type
+Positive_regulation_of_immune_system_process_plot <- c("CD3E", "CD3D", "CD3G","TRAC","CD79A","CD79B","NKG7")
+cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
 
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =Positive_regulation_of_immune_system_process_plot)& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 6))
 p2 <- VlnPlot(cluster2,features =Positive_regulation_of_immune_system_process_plot,group.by = "seurat_clusters")
@@ -738,18 +924,18 @@ read_and_extract <- function(dbused, step) {
 }
 
 # Read and combine data for all 0, 2, 5, and 8
-Hgmt_0 <- read_and_extract("Hgmt", "M0")
-Hgmt_2 <- read_and_extract("Hgmt", "M2")
-Hgmt_6 <- read_and_extract("Hgmt", "M6")
-Hgmt_10 <- read_and_extract("Hgmt", "M10")
+Hgmt_0 <- read_and_extract("Hgmt", "M1")
+Hgmt_2 <- read_and_extract("Hgmt", "M3")
+Hgmt_6 <- read_and_extract("Hgmt", "M4")
+Hgmt_10 <- read_and_extract("Hgmt", "M5")
 
-Hgmt_0$Celltype <- "M0"
-Hgmt_2$Celltype <- "M2"
-Hgmt_6$Celltype <- "M6"
-Hgmt_10$Celltype <- "M10"
+Hgmt_0$Celltype <- "M1"
+Hgmt_2$Celltype <- "M3"
+Hgmt_6$Celltype <- "M4"
+Hgmt_10$Celltype <- "M5"
 
 # Combine data into a single dataframe
-combined_data <-rbind(Hgmt_0, Hgmt_2, Hgmt_6, Hgmt_10) #rbind(Hgmt_0, Hgmt_6) #rbind(Hgmt_0, Hgmt_2, Hgmt_6, Hgmt_10)
+combined_data <-rbind(Hgmt_0, Hgmt_6) #rbind(Hgmt_0, Hgmt_6) #rbind(Hgmt_0, Hgmt_2, Hgmt_6, Hgmt_10)
 data <- combined_data
 data <- data[data$Gene %in% unique(overlap),]
 data$pstat <- 1  # Initialize the new column
@@ -776,33 +962,33 @@ data <- data %>%
   mutate(Gene = factor(Gene, levels = overlap)) %>%
   arrange(Group, Gene)
 
-data <- data[! data$Gene_short %in% c("HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M2)","HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M6)","HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M10)"),]
-p1 <- ggplot(data = data, aes(x = -log(padj), y = fct_inorder(Gene_short), fill = Group)) + 
+data <- data[! data$Gene_short %in% c("HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M3)","HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M4)","HALLMARK_TNFA_SIGNALING_\nVIA_NFKB (M5)"),]
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0(""))
 
 p2 <- ggplot(data = data, aes(x = NES, y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) +
+  scale_fill_manual(values = c("#9671c3","#69a75f", "#be883d"),labels = c("scCLINIC", "DF", "All cells")) +
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
   scale_x_continuous(breaks = seq(0, max(data$NES), by = 1)) + # Set x-axis breaks to 0, 1, 2, 3, ...
   ggtitle(paste0(""))
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Hallmark_Fig4B1p1b.png"), p1, height = 3, width = 7, dpi = 300)
-ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Hallmark_Fig4B1p2b.png"), p2, height = 3, width = 5, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Hallmark_Fig4B1p1b.png"), p1, height = 2, width = 7, dpi = 300)
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/","Hallmark_Fig4B1p2b.png"), p2, height = 2, width = 5, dpi = 300)
 
 HALLMARK_ESTROGEN_RESPONSE_LATE <- c("CXCL14", "PTGER3", "MEST", "DNAJC1", "BTG3", "PDLIM3", "XBP1", "ELOVL5", "CPE", "BAG1", "ASS1", "CHPT1", "DCXR", "NXT1", "CYP26B1", "FABP5", "JAK1", "EGR3", "TPBG", "KLF4", "IL6ST", "FDFT1", "UGDH", "PERP", "CKB", "RABEP1", "TOB1")
 HALLMARK_ESTROGEN_RESPONSE_LATE <- c("CAV1","CXCL14", "CXCL12", "KLF4", "IGFBP4", "CD9", "DUSP2", "JAK1", "IL6ST", "ADD3", "BLVRB", "SGK1", "ATP2B4", "DYNLT3", "FOS")#c("CXCL14", "CAV1", "CXCL12", "KLF4", "IGFBP4", "CD9", "DUSP2", "JAK1", "IL6ST", "ADD3", "BLVRB", "SGK1", "ATP2B4", "DYNLT3", "FOS")
 HALLMARK_ESTROGEN_RESPONSE_LATE <- c("KLF4","CAV1","CXCL14", "CXCL12", "IGFBP4", "CD9","FOS" )
 
-for (clusterx in c("M0","M2","M6","M10")){
-  cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatureMetabolism_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
+for (clusterx in c("M1","M3","M4","M5")){
+  cluster2 <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig4/AdiposeNatMet_Step2/Overlap_Ratio_0.5_recluster/Overlap_Ratio_0.5_cluster_",clusterx,".rds"))
   
 p1 <- FeaturePlot(cluster2, reduction = "umap",features =HALLMARK_ESTROGEN_RESPONSE_LATE) & scale_color_gradientn(colors = c("grey","red"),limits = c(0, 6))
 p2 <- VlnPlot(cluster2,features =HALLMARK_ESTROGEN_RESPONSE_LATE,group.by = "seurat_clusters")
@@ -860,18 +1046,18 @@ data <- data %>%
   mutate(Gene = factor(Gene, levels = overlap)) %>%
   arrange(Group, Gene)
 
-p1 <- ggplot(data = data, aes(x = -log(padj), y = fct_inorder(Gene_short), fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f","#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) + #,labels = c("scCLINIC -ve", "DF -ve", "All cells")
+  scale_fill_manual(values = c("#9671c3","#69a75f","#be883d"),labels = c("scCLINIC", "DF", "All cells")) + #,labels = c("scCLINIC", "DF", "All cells")
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0("Prox.Tubule"))
 
 p2 <- ggplot(data = data, aes(x = NES, y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f","#be883d"),labels = c("scCLINIC -ve", "DF -ve", "All cells")) + #,labels = c("scCLINIC -ve", "DF -ve", "All cells")
+  scale_fill_manual(values = c("#9671c3","#69a75f","#be883d"),labels = c("scCLINIC", "DF", "All cells")) + #,labels = c("scCLINIC", "DF", "All cells")
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
@@ -921,18 +1107,18 @@ data <- data %>%
   mutate(Gene = factor(Gene, levels = overlap)) %>%
   arrange(Group, Gene)
 
-p1 <- ggplot(data = data, aes(x = -log(padj), y = fct_inorder(Gene_short), fill = Group)) + 
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("All Cells vs scCLINIC -ve", "All Cells vs DF -ve")) + #,labels = c("scCLINIC -ve", "DF -ve", "All cells")
+  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("All Cells vs scCLINIC", "All Cells vs DF")) + #,labels = c("scCLINIC", "DF", "All cells")
   geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
   theme_bw() + 
   ylab("") + 
-  xlab("-log(padj)") + 
+  xlab("-log10(padj)") + 
   ggtitle(paste0("Stroma"))
 
 p2 <- ggplot(data = data, aes(x = NES, y = fct_inorder(Gene_short), fill = Group)) + 
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("All Cells vs scCLINIC -ve", "All Cells vs DF -ve")) + #,labels = c("scCLINIC -ve", "DF -ve", "All cells")
+  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("All Cells vs scCLINIC", "All Cells vs DF")) + #,labels = c("scCLINIC", "DF", "All cells")
   theme_bw() + 
   ylab("") + 
   xlab("Normalized Enrichment Score (NES)") + 
