@@ -324,6 +324,18 @@ dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgo
 dealgoseuobj$DEAlgo_Contaminated <- ifelse(as.numeric(levels(dealgoseuobj$DEAlgocluster_Contam))[dealgoseuobj$DEAlgocluster_Contam] < 4, "Artifact", "Singlet")
 dealgoseuobj$dealgocontamclus <- ifelse(dealgoseuobj$DEAlgo_Contaminated == "Artifact", dealgoseuobj$DEAlgo_ClusterID, NA)
 
+
+cells_with_both <- subset(dealgoseuobj, DFafqc == "Doublet" & DEAlgo_Contaminated == "Artifact") #324
+
+# > table(dealgoseuobj$DFafqc)
+# 
+# Doublet Singlet 
+# 913   11264 
+# > table(dealgoseuobj$DEAlgo_Contaminated)
+# 
+# Artifact  Singlet 
+# 853    11324 
+
 for (i in c("M8","M4","M5","M1","M2","M6")){ #No M3
   file_name <- paste0("annotation_index","_cluster_",i,".rds")
   recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/kidneymouse_science_Step2/annotation_index_recluster/",file_name))

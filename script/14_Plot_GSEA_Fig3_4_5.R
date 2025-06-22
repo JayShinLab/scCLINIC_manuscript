@@ -1125,6 +1125,66 @@ p2 <- ggplot(data = data, aes(x = NES, y = fct_inorder(Gene_short), fill = Group
   ggtitle(paste0("Stroma"))
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","GSEA_Result_",dbused,"_",cell_type,".png"), p1+p2, height = 2.5, width = 15, dpi = 300)
 
+###X_Ori
+dbused <- "Hgmt"
+cell_type <- "Stroma"
+overlap <- c("HALLMARK_INTERFERON_GAMMA_RESPONSE","HALLMARK_INFLAMMATORY_RESPONSE","HALLMARK_IL6_JAK_STAT3_SIGNALING","HALLMARK_XENOBIOTIC_METABOLISM","HALLMARK_FATTY_ACID_METABOLISM","HALLMARK_BILE_ACID_METABOLISM")
+
+Hlst <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","GSEA_Result_",dbused,"_",cell_type,"_X_Ori.rds"))
+
+data <- data.frame(
+  Group = c(rep("DEAlgo", length(Hlst$DEAlgoResult.padj)),rep("DF", length(Hlst$DFResult.padj))),
+  padj = c(Hlst$DEAlgoResult.padj,Hlst$DFResult.padj),
+  #Value = c(OriH$NES,DEAlgoH$NES,DFH$NES),
+  Gene = c(Hlst$DEAlgoResult.pathway,Hlst$DFResult.pathway),
+  NES = c(Hlst$DEAlgoResult.NES,Hlst$DFResult.NES)
+  
+  #Lead = c(list(Hlst$OriResult.leadingEdge),list(Hlst$DEAlgoResult.leadingEdge),list(Hlst$DFResult.leadingEdge))
+  #NGene = c(length(Hlst$OriResult.leadingEdge),length(Hlst$DEAlgoResult.leadingEdge),length(Hlst$DFResult.leadingEdge))
+)
+
+data <- data[data$Gene %in% unique(overlap),]
+data$pstat <- 1  # Initialize the new column
+data$pstat[data$padj <= 0.05] <- 2
+data$pstat[data$padj <= 0.01] <- 3
+data$pstat[data$padj <= 0.001] <- 4
+data$pstat[is.na(data$padj)] <- NA
+
+NES_break <- c(-4,-2,0,2,4)
+# Convert pstat to a factor
+data$pstat <- factor(data$pstat)
+
+# Modify the size breaks to match the levels of pstat
+data$Gene_short <- data$Gene
+substitute_underscores <- function(string) {
+  gsub("(([^_]*_){3})", "\\1\n", string, perl = TRUE)
+}
+
+# Apply the function to Gene_short
+data$Gene_short <- substitute_underscores(data$Gene_short)
+
+data <- data %>%
+  mutate(Gene = factor(Gene, levels = overlap)) %>%
+  arrange(Group, Gene)
+
+p1 <- ggplot(data = data, aes(x = -log10(padj), y = fct_inorder(Gene_short), fill = Group)) + 
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("scCLINIC vs All Cells", "DF vs All Cells")) + #,labels = c("scCLINIC", "DF", "All cells")
+  geom_vline(xintercept = -log10(0.05), linetype = "dotted", color = "black", size = 1) +  # Add dotted vertical line
+  theme_bw() + 
+  ylab("") + 
+  xlab("-log10(padj)") + 
+  ggtitle(paste0("Stroma"))
+
+p2 <- ggplot(data = data, aes(x = NES, y = fct_inorder(Gene_short), fill = Group)) + 
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#9671c3","#69a75f"),labels = c("scCLINIC vs All Cells", "DF vs All Cells")) + #,labels = c("scCLINIC", "DF", "All cells")
+  theme_bw() + 
+  ylab("") + 
+  xlab("Normalized Enrichment Score (NES)") + 
+  ggtitle(paste0("Stroma"))
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig3/","GSEA_Result_",dbused,"_",cell_type,"_X_Ori.png"), p1+p2, height = 2.5, width = 15, dpi = 300)
+
 
 Positive_regulation_of_immune_system_process_plot <- c("Slc23a1","Slc27a2","Abcd3","Fmo1","Acox1","Rdh16","Acox3")
 

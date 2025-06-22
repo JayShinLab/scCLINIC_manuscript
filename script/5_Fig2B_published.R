@@ -640,7 +640,7 @@ score.list.all <- FindScores.All(count_lst, methods)
 
 saveRDS(score.list.all,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/Fig2B_DFsScore.rds")
 
-library(dealgolorg)
+library(scCLINIC)
 library(dplyr)
 library(pracma)
 library(Seurat)
@@ -651,7 +651,7 @@ library(viridisLite)
 library(reshape2)
 library(gridExtra)
 
-Name <-  "DEAlgo_Fig2B_hto12"
+Name <-  "Fig2B_hto12"
 Input <- "~/DEAlgoManuscript/Manuscript_Figures/Fig2B/hto12.rds"
 Output <- "~/DEAlgoManuscript/Manuscript_Figures/Fig2B/"
 filteredmatrix=NA
@@ -670,7 +670,7 @@ obj <- STEP1B_MergingCluster(obj,Output,Name,resol,overlapRatioList,gene_n)
 obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n)
 
 obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold)
-saveRDS(obj,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/step1d.rds")
+saveRDS(obj,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/scCLINIC_step1d.rds")
 STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n)
 
 obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/step1d.rds")
@@ -1066,6 +1066,25 @@ for (i in c("M0","M1","M2","M4")){
   
 }
 
+
+file_name <- paste0("Overlap_Ratio_0.25","_cluster_M2.rds")
+recluster <- readRDS(paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/DEAlgo_Fig2B_hto12_Step2/Overlap_Ratio_0.25_recluster/",file_name))
+#THP1
+p0 <- FeaturePlot(recluster, reduction = "umap",features = c("ELANE"))& scale_color_gradientn(colors = c("grey","#69a75f"),limits = c(0, 5), oob = scales::squish)
+p1 <- FeaturePlot(dealgoseuobj, reduction = "umap",features = c("ELANE"))& scale_color_gradientn(colors = c("grey","#69a75f"),limits = c(0, 5), oob = scales::squish)
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B_cluster_M2_ELANE.png"), p0+p1, height = 10, width = 5, dpi = 300)
+#HEK
+p0 <- FeaturePlot(recluster, reduction = "umap",features = c("CDKN2A"))& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 4), oob = scales::squish)
+p1 <- FeaturePlot(dealgoseuobj, reduction = "umap",features = c("CDKN2A"))& scale_color_gradientn(colors = c("grey","red"),limits = c(0, 4), oob = scales::squish)
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B_cluster_M2_CDKN2A.png"), p0+p1, height = 10, width = 5, dpi = 300)
+#KG1
+p0 <- FeaturePlot(recluster, reduction = "umap",features = c("HLA-DRA"))& scale_color_gradientn(colors = c("grey","purple"),limits = c(0, 5), oob = scales::squish)
+p1 <- FeaturePlot(dealgoseuobj, reduction = "umap",features = c("HLA-DRA"))& scale_color_gradientn(colors = c("grey","purple"),limits = c(0, 5), oob = scales::squish)
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Fig2B_cluster_M2_HLA-DRA.png"), p0+p1, height = 10, width = 5, dpi = 300)
+
 ###Calculate AUROC
 auroclst <- list()
 aucinput <- dealgoseuobj@meta.data[dealgoseuobj$HomoHetero %in% c("Singlet","Heterotypic"),]
@@ -1381,10 +1400,11 @@ p3 <- DimPlot(recluster, reduction = "umap",group.by = "Status",raster=FALSE, si
 p4 <- DimPlot(recluster, reduction = "umap",group.by = "dealgocontamclus",raster=FALSE, sizes.highlight = 0.05,pt.size = 0.05, cols = c("#8d8d0f","#b488bb","#d55046"))
 p10 <- DimPlot(recluster, reduction = "umap",group.by = "DFbfqc",raster=FALSE, sizes.highlight = 0.05,cols= c("red","grey"),pt.size = 0.05)
 
+saveRDS(recluster,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/recluster_plot.rds")
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/", "Published", "_cluster_", i, "_rawscore_Validate.png"), p3+p4+p10,
        height = 5, width = 15, dpi = 300)
 
-
+#Check the stats...
 originalseu <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/DEAlgo_Fig2B_hto12_Step1/1b_resol_0.8.rds")
 originalseu$HTO_classification <- hto12obj$HTO_classification
 originalseu$HomoHetero <- unlist(lapply(originalseu$HTO_classification,homoheterochecker))
@@ -1422,6 +1442,8 @@ p9 <- DimPlot(originalseu, reduction = "umap",group.by = "HomoHetero",raster=FAL
   "black",
   "grey"))
 
+saveRDS(originalseu,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/originalseu_plot.rds")
+
 ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","Overlap_Ratio_0.25","_Fig2BFullUmap.png"), p9+p2+p8, height = 8, width = 24, dpi = 300)
 
 originalseu$PDF <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DFbfqc =="Doublet", 1,0)
@@ -1449,3 +1471,144 @@ table(originalseu$DFbfqc)
 # 
 # Doublet Singlet 
 # 446    7747 
+
+originalseu$DFCITE <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DFbfqc =="Doublet", 1,0)
+
+originalseu$SCCITE <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DEAlgo_Contaminated =="Artifact", 1,0)
+
+originalseu$DFSC <- ifelse(originalseu$DEAlgo_Contaminated =="Artifact" & originalseu$DFbfqc =="Doublet", 1,0)
+
+originalseu$DFSCCITE <- ifelse(originalseu$HomoHetero == "Heterotypic" & originalseu$DEAlgo_Contaminated =="Artifact" & originalseu$DFbfqc =="Doublet", 1,0)
+
+table(originalseu$DFCITE)
+table(originalseu$SCCITE)
+table(originalseu$DFSC)
+table(originalseu$DFSCCITE)
+
+table(originalseu$DEAlgo_Contaminated)
+table(originalseu$DFbfqc)
+
+# > table(originalseu$DFCITE) #DF + and CITE-seq +
+# 
+# 0    1 
+# 7918  275 
+# > table(originalseu$SCCITE) #SC + and CITE-seq +
+# 
+# 0    1 
+# 7919  274 
+# > table(originalseu$DFSC) #DF + and SC +
+# 
+# 0    1 
+# 7943  250 
+# > table(originalseu$DFSCCITE) #DF + and SC+ and CITE-seq +
+# 
+# 0    1 
+# 7948  245 
+# > 
+#   > table(originalseu$DEAlgo_Contaminated)
+# 
+# Artifact Low Quality Cell          Singlet 
+# 296              576             7321 
+# > table(originalseu$DFbfqc)
+# 
+# Doublet Singlet 
+# 446    7747 
+
+# # Create a simple Venn diagram for two sets
+# library(VennDiagram)
+# venn.plot <- draw.pairwise.venn(
+#   area1 = ncol(originalseu),  # Size of set A
+#   area2 = ncol(originalseu),   # Size of set B
+#   cross.area = sum(originalseu$DFCITE), # Intersection of A and B
+#   category = c("CITE-seq", "DF"),  # Labels
+#   fill = c("red", "blue"),  # Colors for the sets
+#   lwd = 2,  # Line width
+#   alpha = c(0.5, 0.5),  # Transparency for colors
+#   cex = 2,  # Font size for numbers
+#   cat.cex = 2,  # Font size for labels
+#   cat.col = c("red", "blue")  # Color for labels
+# )
+# 
+# # Save the Venn diagram as a PNG file
+# png(filename = "simple_venn.png")
+# grid.draw(venn.plot)
+# dev.off()
+library(VennDiagram)
+# Create a three-set Venn diagram
+p1 <- draw.triple.venn(
+  area1 = sum(originalseu$HomoHetero == "Heterotypic"),   # Size of Set A
+  area2 = sum(originalseu$DEAlgo_Contaminated == "Artifact"),    # Size of Set B
+  area3 = sum(originalseu$DFbfqc == "Doublet"),    # Size of Set C
+  n12 = sum(originalseu$SCCITE),      # Intersection of A and B
+  n23 = sum(originalseu$DFSC),      # Intersection of B and C
+  n13 = sum(originalseu$DFCITE),      # Intersection of A and C
+  n123 = sum(originalseu$DFSCCITE),      # Intersection of A, B, and C
+  category = c("CITE-seq","scCLINIC" ,"DF"),  # Labels for the sets
+  
+  fill = c("#be883d","#9671c3","#69a75f"),         # Colors for the sets
+  alpha = c(0.5, 0.5, 0.5),                 # Transparency for colors
+  lwd = 2,                                  # Line width
+  cex = 2,                                  # Font size for numbers
+  cat.cex = 1,                              # Font size for labels
+  cat.col = c("#be883d","#9671c3","#69a75f")       # Colors for the labels
+)
+
+
+ggsave(filename = paste0("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/","VennDiagram_2.png"), p1, height = 5, width = 5, dpi = 300)
+
+
+
+#OverlapRatio05
+library(dealgolorg)
+library(dplyr)
+library(pracma)
+library(Seurat)
+library(ggplot2)
+library(tidyr)
+library(pheatmap)
+library(viridisLite)
+library(reshape2)
+library(gridExtra)
+library(cowplot)
+library(R.utils)
+library(fs)
+
+Name <-  "DEAlgo_Fig2B_hto12"
+Input <- "~/DEAlgoManuscript/Manuscript_Figures/Fig2B/hto12.rds"
+Output <- "~/DEAlgoManuscript/Manuscript_Figures/Fig2B/OverlapRatio05/"
+filteredmatrix=NA
+rawmatrix=NA
+resol=0.8
+overlapRatioList=c(0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+OverlapRatio=0.5
+ISThreshold=0
+Cutoff=0
+gene_n=150
+
+obj <- STEP1A_GlobalMarkers(Input,Output,Name,resol)
+
+obj <- STEP1B_MergingCluster(obj,Output,Name,resol,overlapRatioList,gene_n)
+
+obj <- STEP1C_RecalculateGlobalMarkers_IdentityScore(obj,Output,Name,resol,OverlapRatio,gene_n)
+
+obj <- STEP1D_FilterLowISCluster(obj,Output,Name,resol,OverlapRatio,ISThreshold)
+saveRDS(obj,"~/DEAlgoManuscript/Manuscript_Figures/Fig2B/OverlapRatio05/step1d.rds")
+STEP2A_Subcluster(obj,Output,Name,resol,OverlapRatio,gene_n)
+
+obj <- readRDS("~/DEAlgoManuscript/Manuscript_Figures/Fig2B/OverlapRatio05/step1d.rds")
+obj <- STEP2B_ContaminationScore(obj,Output,Name,resol,OverlapRatio,gene_n,Cutoff)
+
+PlotContaminationPattern(obj,Output,Name,OverlapRatio)
+
+#
+negative_cells <- colnames(subset(hto12obj, subset = HTO_classification == "Negative"))
+common_cells <- intersect(negative_cells, colnames(dealgoseuobj))
+
+hto12obj$HomoHetero <- unlist(lapply(hto12obj$HTO_classification,homoheterochecker))
+hto12obj$Status <- unlist(lapply(hto12obj$HTO_classification, function(x) gsub("-.", "", x)))
+
+non_common_cells <- setdiff(colnames(hto12obj), colnames(dealgoseuobj))
+
+# Subset `hto12obj` based on cells that are not found in `dealgoseuobj`
+subset_hto12obj <- subset(hto12obj, cells = non_common_cells)
+table(subset_hto12obj$HomoHetero)
