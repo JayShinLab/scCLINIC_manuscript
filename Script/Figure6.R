@@ -377,15 +377,13 @@ Fig6B <- SpatialDimPlot(CRC, group.by = "merged_cell_type_newlabels",
   )
 
 
-#ggsave(filename = paste0(output_dir, "Fig6B.png"), plot = Fig6B, width = 15, height = 10)
-
 #=================================Fig6C==========================================================
 Fig6C <-FeaturePlot(scCLINICResult, 
                     features = c("scCLINICScore"),
                     pt.size = 0.5,
                     reduction = "umap", 
                     raster = FALSE)+labs(color = "scCLINIC Score") +
-  #ggtitle("ClusterID for Cells with Score > 0.1") +
+
   theme( plot.title = element_blank(),axis.ticks = element_blank(),axis.text.y = element_blank(),
          axis.text.x = element_blank(),axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
          legend.position = c(0.03,0.15),
@@ -393,14 +391,12 @@ Fig6C <-FeaturePlot(scCLINICResult,
          legend.text = element_text(size = 21, family = font_type),
          legend.key.size = unit(1.5, 'lines'),legend.spacing.x = unit(0.2, "lines"),
          legend.spacing.y =unit(0, "lines"))
-#ggsave(filename = paste0(output_dir, "Fig6C.png"), plot = Fig6C, width = 8, height = 8)
 
 
 #=================================Fig6D===Fig6E=======================================================
 library(RColorBrewer)
 area1 <- c("M1_S4", "M1_S7", "M4_S2",  "M6_S1")
 area2 <- c("M1_S14", "M1_S19", "M3_S0" ,"M6_S17")
-#area2 <- c("M1_S14", "M1_S19", "M6_S17", "M4_S4", "M3_S0")
 
 scCLINICResult$level1_subclusters <- ifelse(
   scCLINICResult$scCLINIC_ClusterID %in% area1, scCLINICResult$scCLINIC_ClusterID,
@@ -415,8 +411,6 @@ scCLINICResult$level1_subclusters <- factor(
   levels = c(area1, area2, "Others")
 )
 
-#red_cols  <- colorRampPalette(c("#fb6a4a", "#cb181d"))(length(area1))
-#blue_cols <- colorRampPalette(c("#6baed6", "#08519c"))(length(area2))
 red_cols_full  <- brewer.pal(5, "Reds")   # from very light to deep red
 blue_cols_full <- brewer.pal(5, "Blues")  # from very light to deep blue
 red_cols  <- red_cols_full[2:5]
@@ -684,7 +678,6 @@ A3 <- ggplot(plot_data3, aes(x = Group, y = count, fill = full_first_type_new)) 
 
 Fig6F <- A3|A1|A2
 
-#ggsave(filename = paste0(output_dir, "Fig6F.png"), plot = Fig6F, width = 28, height = 15)
 
 #============================Fullplot==================================================
 plot_A <- wrap_elements(
@@ -726,7 +719,6 @@ FigS6A <- DimPlot(M1, group.by = "scCLINIC_ClusterID",raster=FALSE, cols = manus
   )&
   guides(color = guide_legend(ncol=3, override.aes = list(size=3)) )
 
-#ggsave(filename = "~/scCLINIC_Manuscript_figure6/Finalized23June2025/FigS6A.png", plot = FigS6A, width = 8, height = 8)
 
 #===========================FigS6B=================================================================
 #PLEASE SAVE A COPY OF ARTIFACTINFO.CSV FILE AND NAME IT "ArtifactsInfo_Bef.csv" BEFORE PROCEEDING
@@ -1351,8 +1343,6 @@ subcluster_M3S0_counts <- subcluster_M3S0 %>%
 
 # Combine data
 plot_data <- bind_rows(major_cluster3_counts, subcluster_M3S0_counts)
-#plot_data <- bind_rows(major_cluster2_counts, subcluster_M2S2_counts)
-#plot_data$full_first_type <- factor(plot_data$full_first_type, levels = unique(c(major_cluster2$full_first_type, subcluster_M2S2$full_first_type)))
 
 names(manuscript_colors) <- NULL
 # Stacked bar plot
@@ -1371,7 +1361,6 @@ FigS6I <- ggplot(plot_data, aes(x = Group, y = count, fill = full_first_type)) +
         panel.background = element_rect(fill = "white"))+  # White background
   guides(fill = guide_legend(ncol=1)) +
   scale_x_discrete(expand = c(0.3, 0.3))
-#ggsave(filename = "~/scCLINIC_Manuscript_figure6/Finalized23June2025/FigS6I.png", plot = FigS6I, width = 8, height = 15)
 
 
 #============================Fullplot==================================================
