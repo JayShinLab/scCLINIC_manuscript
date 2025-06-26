@@ -1,3 +1,4 @@
+%2Fmnt%2Flab-store%2Fprojects%2FscCLINIC%2FReproduce%2FTXY%2FscCLINIC_Fig6.R="A39AD8FA"
 %2Fmnt%2Flab-store%2Fprojects%2FscCLINIC%2FReproduce%2FscCLINIC_Manuscript%2FScript%2FFigure3.R="932E3795"
 %2Fmnt%2Flab-store%2Fprojects%2FscCLINIC%2FReproduce%2FscCLINIC_Manuscript%2FScript%2FscCLINIC_Manuscript_Figure3_Seurat4.R="579138AE"
 %2Fmnt%2Flab-store%2Fprojects%2FscCLINIC%2FReproduce%2FscCLINIC_Manuscript%2FScript%2FsessionInfo.txt="A8D57F8F"
@@ -16,6 +17,7 @@
 ~%2FMM%2F~%2FMM%2Fout%2Ffastqc%2Fraw%2FA1_raw_1_fastqc.html="D22935AD"
 ~%2FMM%2F~%2FMM%2Fout%2Ftrimgalore%2FB2_trimmed_1.fastq.gz_trimming_report.txt="9352BD81"
 ~%2FScript%2FREADME.md="3F955F70"
+~%2FScript%2FScript%2FFigure6.R="A3AFDE79"
 ~%2FScript%2Fscript%2F10_Fig5_published_batch1.R="9A54A59F"
 ~%2FScript%2Fscript%2F11_Fig5_published_batch2.R="AF6F7EE6"
 ~%2FScript%2Fscript%2F12_Fig3_Supplementary_Published1.R="D3800DB9"
