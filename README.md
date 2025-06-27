@@ -2,7 +2,7 @@
 
 The *scCLINIC* manuscript is currently available as a preprint on **bioRxiv**, which can be accessed [here](LINK). This GitHub repository contains the reproducible code used to generate the main figures presented in the manuscript. If you are looking for the R package tutorial of *scCLINIC*, please visit the official repository at [https://github.com/JayShinLab/scCLINIC](https://github.com/JayShinLab/scCLINIC).
 
-All figures were generated using **Seurat version 4**. The scripts and R session information required to reproduce the analyses is provided in the `script/` folder. The dataset used in this study is acknowledged below in accordance with its source.
+All figures were generated using **Seurat version 4**. The scripts and R session information required to reproduce the analyses is provided in the `Script/` folder. The dataset and supplementary files necessary to execute the scripts are listed in `Data/dataset.txt` and are stored in the `Data/` folder, respectively. The dataset use in this study is acknowledged below in accordance with its source.
 
 Scripts related to Extended Data Figures are available upon request. Please contact the authors for access if needed.
 
