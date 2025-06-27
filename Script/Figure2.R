@@ -1,11 +1,9 @@
-# #!/usr/bin/env Rscript
-# args = commandArgs(trailingOnly = TRUE)
-# 
-# if (length(args) == 0) {
-#   stop("Please specify path to manuscript data.", call. = FALSE)
-# }
+#!/usr/bin/env Rscript
+data_path = commandArgs(trailingOnly = TRUE)
 
-data_path <- "/mnt/lab-store/projects/scCLINIC/Reproduce"
+if (length(data_path) == 0) {
+  stop("Please specify path to manuscript data.", call. = FALSE)
+}
 
 library(scCLINIC)
 library(dplyr)
@@ -40,8 +38,6 @@ manuscript_colors <-
     '#CCC9E6',    '#625D9E',    '#68A180',    '#968175',    '#E5D2DD'
   )
 
-data_path <- "/mnt/lab-store/projects/scCLINIC/Reproduce"
-
 outdir <- paste0(data_path, "/scCLINIC_Figures/")
 
 create_folder_if_not_exists(outdir)
@@ -52,80 +48,81 @@ create_folder_if_not_exists <- function(folder_path) {
   }
 }
 
-# create_folder_if_not_exists(paste0(data_path,"/Fig2A/"))
-# create_folder_if_not_exists(paste0(data_path,"/Fig2B/"))
-# ##### Figure 2
-# ### Figure 2A
-# 
-# ##################################################################
-# ### Add Rscript for generating scDesign3 dataset to this folder###
-# library(Seurat)
-# library(scCustomize)
-# data.list <- readRDS(paste0(data_path,"/sim_type.rds"))
-# #data from https://zenodo.org/records/4562782
-# celltype5 <- data.list$count$"5"
-# celltype5_label <- data.list$label$"5"
-# celltype5 <- CreateSeuratObject(celltype5)
-# celltype5@meta.data$label <- celltype5_label
-# celltype5_singlet <- subset(celltype5,subset = label == "singlet")
-# 
-# create_folder_if_not_exists <- function(folder_path) {
-#   if (!dir.exists(folder_path)) {
-#     dir.create(folder_path, recursive = TRUE)
-#   }
-# }
-# 
-# celltype5_singlet <- standard_seurat_clustering(celltype5_singlet,res = 0.8)
-# celltype5_singlet$CellType <- paste0("CellType_",celltype5_singlet$RNA_snn_res.0.8)
-# saveRDS(celltype5_singlet, paste0(data_path,"/Fig2A/Syn_5_Cell_Type_original_1666Singlets.rds"))
-# 
-# #Scdesign3
-# # remotes::install_github("csoneson/DuoClustering2018")
-# 
-# library(scDesign3)
-# library(SingleCellExperiment)
-# library(ggplot2)
-# library(scran)
-# library(tidyverse)
-# library(dplyr)
-# library(Seurat)
-# library(patchwork)
-# 
-# theme_set(theme_bw())
-# 
-# # Load the PBMC dataset
-# obj <- readRDS(paste0(data_path,"/Fig2A/Syn_5_Cell_Type_original_1666Singlets.rds"))
-# 
-# objconvert <- as.SingleCellExperiment(obj)
-# colData(objconvert)$cell_type = as.factor(colData(objconvert)$CellType)
-# colData(objconvert)$library = colSums(counts(objconvert))
-# rowData(objconvert)$id = rownames(obj)
-# 
-# set.seed(123)
-# example_simu <- scdesign3(
-#   sce = objconvert,
-#   assay_use = "counts",
-#   celltype = "cell_type",
-#   pseudotime = NULL,
-#   spatial = NULL,
-#   other_covariates = "library",
-#   mu_formula = "cell_type + offset(log(library))",
-#   sigma_formula = "1",
-#   family_use = "nb",
-#   n_cores = 2,
-#   usebam = FALSE,
-#   corr_formula = "1",
-#   copula = "gaussian",
-#   DT = TRUE,
-#   pseudo_obs = FALSE,
-#   return_model = FALSE,
-#   nonzerovar = FALSE,
-#   parallelization = "pbmcmapply",
-#   important_feature = "auto",
-#   ncell = 10000
-# )
-# 
-# saveRDS(example_simu,paste0(data_path,"/Fig2A/OUTPUT_Syn_5_Cell_Type_10000.rds"))
+create_folder_if_not_exists(paste0(data_path,"/Fig2A/"))
+create_folder_if_not_exists(paste0(data_path,"/Fig2B/"))
+##### Figure 2
+### Figure 2A
+
+##################################################################
+### Add Rscript for generating scDesign3 dataset to this folder###
+library(Seurat)
+library(scCustomize)
+data.list <- readRDS(paste0(data_path,"/sim_type.rds"))
+#Please download sim_type.rds from the synthetic_datasets.zip archive available at https://zenodo.org/records/4562782.
+
+celltype5 <- data.list$count$"5"
+celltype5_label <- data.list$label$"5"
+celltype5 <- CreateSeuratObject(celltype5)
+celltype5@meta.data$label <- celltype5_label
+celltype5_singlet <- subset(celltype5,subset = label == "singlet")
+
+create_folder_if_not_exists <- function(folder_path) {
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+}
+
+celltype5_singlet <- standard_seurat_clustering(celltype5_singlet,res = 0.8)
+celltype5_singlet$CellType <- paste0("CellType_",celltype5_singlet$RNA_snn_res.0.8)
+saveRDS(celltype5_singlet, paste0(data_path,"/Fig2A/Syn_5_Cell_Type_original_1666Singlets.rds"))
+
+#Scdesign3
+# remotes::install_github("csoneson/DuoClustering2018")
+
+library(scDesign3)
+library(SingleCellExperiment)
+library(ggplot2)
+library(scran)
+library(tidyverse)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+
+theme_set(theme_bw())
+
+# Load the PBMC dataset
+obj <- readRDS(paste0(data_path,"/Fig2A/Syn_5_Cell_Type_original_1666Singlets.rds"))
+
+objconvert <- as.SingleCellExperiment(obj)
+colData(objconvert)$cell_type = as.factor(colData(objconvert)$CellType)
+colData(objconvert)$library = colSums(counts(objconvert))
+rowData(objconvert)$id = rownames(obj)
+
+set.seed(123)
+example_simu <- scdesign3(
+  sce = objconvert,
+  assay_use = "counts",
+  celltype = "cell_type",
+  pseudotime = NULL,
+  spatial = NULL,
+  other_covariates = "library",
+  mu_formula = "cell_type + offset(log(library))",
+  sigma_formula = "1",
+  family_use = "nb",
+  n_cores = 2,
+  usebam = FALSE,
+  corr_formula = "1",
+  copula = "gaussian",
+  DT = TRUE,
+  pseudo_obs = FALSE,
+  return_model = FALSE,
+  nonzerovar = FALSE,
+  parallelization = "pbmcmapply",
+  important_feature = "auto",
+  ncell = 10000
+)
+
+saveRDS(example_simu,paste0(data_path,"/Fig2A/OUTPUT_Syn_5_Cell_Type_10000.rds"))
 
 example_simu <- readRDS(paste0(data_path,"/Fig2A/OUTPUT_Syn_5_Cell_Type_10000.rds"))
 
@@ -1205,9 +1202,13 @@ Figure_2C <-
 
 # Read in UMI count matrix for RNA
 hto12.umis <- readRDS(paste0(data_path,"/hto12_umi_mtx.rds"))
+#Please download hto12_umi_mtx.rds from https://www.dropbox.com/scl/fo/tygiouyv6spn8x0coyyau/AK3HDK42JJbkNMjQa53mtqA?rlkey=3urtt7msejtbwnhflkxopm6zr&e=1&st=yrf1txrq&dl=0
+#archive available at Seurat cell hashing tutorial
 
 # Read in HTO count matrix
 hto12.htos <- readRDS(paste0(data_path,"/hto12_hto_mtx.rds"))
+#Please download hto12_hto_mtx.rds from https://www.dropbox.com/scl/fo/tygiouyv6spn8x0coyyau/AK3HDK42JJbkNMjQa53mtqA?rlkey=3urtt7msejtbwnhflkxopm6zr&e=1&st=yrf1txrq&dl=0
+#archive available at Seurat cell hashing tutorial
 
 # Select cell barcodes detected in both RNA and HTO
 cells.use <- intersect(rownames(hto12.htos), colnames(hto12.umis))

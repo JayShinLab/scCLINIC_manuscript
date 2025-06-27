@@ -1,4 +1,10 @@
 #!/usr/bin/env Rscript
+data_path = commandArgs(trailingOnly = TRUE)
+
+if (length(data_path) == 0) {
+  stop("Please specify path to manuscript data.", call. = FALSE)
+}
+
 library(patchwork)
 library(scCLINIC)
 library(dplyr)
@@ -34,7 +40,6 @@ manuscript_colors <-
     '#CCC9E6',    '#625D9E',    '#68A180',    '#968175',    '#E5D2DD'
   )
 
-data_path <- "/mnt/lab-store/projects/scCLINIC/Reproduce"
 
 create_folder_if_not_exists <- function(folder_path) {
   if (!dir.exists(folder_path)) {
@@ -50,7 +55,9 @@ outdir <- paste0(data_path, "/scCLINIC_Figures/")
 create_folder_if_not_exists(outdir)
 
 #Load and save Robj
-load(paste0(data_path, "/seu_kidney_codeocean.Robj")) #dataset obtained from https://codeocean.com/capsule/5650599/tree/v1
+load(paste0(data_path, "/seu_kidney_codeocean.Robj")) 
+#Please download seu_kidney_codeocean.Robj from the /data folder archive available at https://codeocean.com/capsule/5650599/tree/v1.
+
 saveRDS(seu_kidney,paste0(data_path,"/Fig3/seu_kidney_codeocean.rds")) 
 #Convert Old seurat (s4 object) to new seurat
 obj <- CreateSeuratObject(counts = seu_kidney@raw.data)

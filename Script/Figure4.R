@@ -1,11 +1,10 @@
 #!/usr/bin/env Rscript
-# args = commandArgs(trailingOnly = TRUE)
-# 
-# if (length(args) == 0) {
-#   stop("Please specify path to manuscript data.", call. = FALSE)
-# }
+data_path = commandArgs(trailingOnly = TRUE)
 
-#library(Seurat, lib.loc = "/mnt/software/R/4.3.0/lib64/R/library")
+if (length(data_path) == 0) {
+  stop("Please specify path to manuscript data.", call. = FALSE)
+}
+
 library(scCLINIC)
 library(dplyr)
 library(pracma)
@@ -19,7 +18,6 @@ library(gridExtra)
 library(cowplot)
 library(R.utils)
 library(fs)
-#library(patchwork, lib.loc = "/home/thanxy/R/x86_64-conda-linux-gnu-library/4.3")
 library(patchwork)
 library(ggpubr)
 
@@ -39,8 +37,6 @@ manuscript_colors <-
     '#CCC9E6',    '#625D9E',    '#68A180',    '#968175',    '#E5D2DD'
   )
 
-data_path <- "/mnt/lab-store/projects/scCLINIC/Reproduce/"
-
 create_folder_if_not_exists <- function(folder_path) {
   if (!dir.exists(folder_path)) {
     dir.create(folder_path, recursive = TRUE)
@@ -49,7 +45,7 @@ create_folder_if_not_exists <- function(folder_path) {
 
 create_folder_if_not_exists(paste0(data_path,"/Fig4/"))
 
-#Data download from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129363, stored in /Fig4/AdiposeNatureMetabolism
+#Please download the genes, barcodes, and matrix files from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129363
 #Reference https://www.nature.com/articles/s42255-019-0152-6 Nature Metabolism
 
 library(ggrepel)
@@ -60,15 +56,18 @@ library(fgsea)
 library(tidyverse)
 library(openxlsx)
 
-Hgmt<-gmtPathways(paste0(data_path,"/h.all.v2023.2.Hs.symbols.gmt"))#url("https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt"))
-GOgmt<-gmtPathways(paste0(data_path,"/c5.go.v2023.2.Hs.symbols.gmt"))#(#url("https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt"))
+Hgmt<-gmtPathways(paste0(data_path,"/h.all.v2023.2.Hs.symbols.gmt"))
+#Please download the h.all.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt
+
+GOgmt<-gmtPathways(paste0(data_path,"/c5.go.v2023.2.Hs.symbols.gmt"))
+#Please download the c5.go.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt
 
 saveRDS(GOgmt,paste0(data_path,"/Fig4/GOgmt.rds"))
 saveRDS(Hgmt,paste0(data_path,"/Fig4/Hgmt.rds"))
 
 adinat <- Read10X(paste0(data_path)) 
 
-adinatobj <- CreateSeuratObject(adinat)     #this nned seuratV5
+adinatobj <- CreateSeuratObject(adinat)
 
 adinatobj$SampleIDX <- sapply(strsplit(rownames(adinatobj@meta.data), "-"), "[[", 2)
 adinatobj$nCount_RNA <- colSums(x = adinatobj, slot = "counts")  # nCount_RNA

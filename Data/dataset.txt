@@ -1,0 +1,21 @@
+Please download the following datasets which required for the scripts
+
+Figure 2
+- sim_type.rds from the synthetic_datasets.zip archive available at https://zenodo.org/records/4562782.
+- hto12_umi_mtx.rds  and hto12_hto_mtx.rds from https://www.dropbox.com/scl/fo/tygiouyv6spn8x0coyyau/AK3HDK42JJbkNMjQa53mtqA?rlkey=3urtt7msejtbwnhflkxopm6zr&e=1&st=yrf1txrq&dl=0 archive available at Seurat cell hashing tutorial
+
+Figure 3
+- seu_kidney_codeocean.Robj from the /data folder archive available at https://codeocean.com/capsule/5650599/tree/v1.
+
+Pathways require for Figure 4 & Figure 5
+- h.all.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt
+- c5.go.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt
+
+Figure 4
+- genes, barcodes, and matrix files from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129363
+
+Figure 5
+- blish_covid.seu.rds from the "Blish Lab Peripheral Blood Mononuclear Cells (PBMCs)" entry archive available at https://www.covid19cellatlas.org/index.patient.html.
+
+Figure 6
+- human coloncancer ffpe dataset from 10X genomics Visium HD Dataset archive available at https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-of-human-crc.

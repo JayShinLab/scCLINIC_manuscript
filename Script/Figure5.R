@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-args = commandArgs(trailingOnly = TRUE)
+data_path = commandArgs(trailingOnly = TRUE)
 
-if (length(args) == 0) {
+if (length(data_path) == 0) {
   stop("Please specify path to manuscript data.", call. = FALSE)
 }
 
@@ -39,8 +39,6 @@ manuscript_colors <-
     '#CCC9E6',    '#625D9E',    '#68A180',    '#968175',    '#E5D2DD'
   )
 
-data_path <- "/mnt/lab-store/projects/scCLINIC/Reproduce"
-
 create_folder_if_not_exists <- function(folder_path) {
   if (!dir.exists(folder_path)) {
     dir.create(folder_path, recursive = TRUE)
@@ -49,10 +47,10 @@ create_folder_if_not_exists <- function(folder_path) {
 
 create_folder_if_not_exists(paste0(data_path,"/Fig5/"))
 
-#data downloaded from https://www.covid19cellatlas.org/index.patient.html Blish Lab Peripheral Blood Mononuclear Cells (PBMCs) Nature Medicine, stored in ~/DEAlgoManuscript/Manuscript_Figures/Fig5
+#Please download blish_covid.seu.rds from the "Blish Lab Peripheral Blood Mononuclear Cells (PBMCs)" entry archive available at https://www.covid19cellatlas.org/index.patient.html.
 #Reference https://www.nature.com/articles/s41591-020-0944-y
 
-covid19natmed <- readRDS(paste0(data_path,"/blish_covid19.rds"))
+covid19natmed <- readRDS(paste0(data_path,"/blish_covid.seu.rds"))
 
 covid19natmed.updated = UpdateSeuratObject(object = covid19natmed)
 
@@ -566,6 +564,12 @@ library(ggplot2)
 library(pheatmap)
 pacman::p_load(fgsea,tidyverse,pheatmap,openxlsx)
 library(Seurat)
+
+Hgmt<-gmtPathways(paste0(data_path,"/h.all.v2023.2.Hs.symbols.gmt"))
+#Please download the h.all.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt
+
+GOgmt<-gmtPathways(paste0(data_path,"/c5.go.v2023.2.Hs.symbols.gmt"))
+#Please download the c5.go.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt
 
 GOgmt <- readRDS(paste0(data_path,"/GOgmt.rds"))
 

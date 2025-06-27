@@ -1,5 +1,10 @@
-library(hdf5r)
+data_path = commandArgs(trailingOnly = TRUE)
 
+if (length(data_path) == 0) {
+  stop("Please specify path to manuscript data.", call. = FALSE)
+}
+
+library(hdf5r)
 library(scCLINIC)
 library(dplyr)
 library(pracma)
@@ -19,17 +24,29 @@ library(purrr)
 library(ggforce)
 library(ggrepel)
 library(grid) #for gpar() FigS6I
-library(arrow, lib.loc = "/mnt/software/R/4.3.0/lib64/R/library")
+library(arrow)
 
+#Please download human coloncancer ffpe dataset from 10X genomics Visium HD Dataset archive available at https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-of-human-crc.
+#Reference https://doi.org/10.1101/2024.06.04.597233 
 
-localdir <- "~/testVisiumHDHumanCRC/human_coloncancer_ffpe/output_and_supplement_files/binned_outputs/square_016um/"
+localdir <- paste0(data_path,"/output_and_supplement_files/binned_outputs/square_016um/")
+
 CRC <- Load10X_Spatial(data.dir = localdir, filename = "filtered_feature_bc_matrix.h5")
 
-output_dir <- "/mnt/lab-store/projects/scCLINIC/Reproduce/TXY/Fig6/"
+create_folder_if_not_exists <- function(folder_path) {
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+}
+
+create_folder_if_not_exists(paste0(data_path,"/Fig6/"))
+
+output_dir <- paste0(data_path,"/Fig6/")
+
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)  # Create the directory if it doesn't exist
 }
-output_dir <- "/mnt/lab-store/projects/scCLINIC/Reproduce/TXY/Fig6/"
+
 saveRDS(CRC,paste0(output_dir, "CRC016_raw.rds"))
 
 #==================Preprocessing======================================================
