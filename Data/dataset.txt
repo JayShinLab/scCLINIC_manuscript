@@ -1,4 +1,4 @@
-Please download the following datasets which required for the scripts
+Please download the relevant datasets required for generating the following figures.
 
 Figure 2
 - sim_type.rds from the synthetic_datasets.zip archive available at https://zenodo.org/records/4562782.
@@ -7,7 +7,7 @@ Figure 2
 Figure 3
 - seu_kidney_codeocean.Robj from the /data folder archive available at https://codeocean.com/capsule/5650599/tree/v1.
 
-Pathways require for Figure 4 & Figure 5
+MSigDb Pathways required for Figure 4 & Figure 5
 - h.all.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt
 - c5.go.v2023.2.Hs.symbols.gmt from https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt
 
