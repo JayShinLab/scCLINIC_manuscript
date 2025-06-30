@@ -8,9 +8,13 @@ Scripts related to Extended Data Figures are available upon request. Please cont
 
 
 ## Dataset
-- Fig 2: Source https://satijalab.org/seurat/articles/hashing_vignette.html Reference https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1603-1
+- Fig 2: Source https://satijalab.org/seurat/articles/hashing_vignette.html
+  Reference https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1603-1
 - Fig 3: Source https://codeocean.com/capsule/5650599/tree/v1 
   Reference https://www.cell.com/cell-systems/fulltext/S2405-4712(19)30073-0 https://www.science.org/doi/epdf/10.1126/science.aar2131
-- Fig 4: Source https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129363 Reference https://www.nature.com/articles/s42255-019-0152-6 
-- Fig 5: Source https://www.covid19cellatlas.org/index.patient.html Reference https://www.nature.com/articles/s41591-020-0944-y
-- Fig 6: Source https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-of-human-crc Reference https://doi.org/10.1101/2024.06.04.597233
+- Fig 4: Source https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129363
+  Reference https://www.nature.com/articles/s42255-019-0152-6 
+- Fig 5: Source https://www.covid19cellatlas.org/index.patient.html
+  Reference https://www.nature.com/articles/s41591-020-0944-y
+- Fig 6: Source https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-libraries-of-human-crc
+  Reference https://doi.org/10.1101/2024.06.04.597233
